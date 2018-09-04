@@ -26,12 +26,7 @@ namespace FireflyIII\Support\Import\JobConfiguration\Spectre;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
-use FireflyIII\Services\Spectre\Object\Customer;
 use FireflyIII\Services\Spectre\Object\Login;
-use FireflyIII\Services\Spectre\Object\Token;
-use FireflyIII\Services\Spectre\Request\CreateTokenRequest;
-use FireflyIII\Services\Spectre\Request\ListCustomersRequest;
-use FireflyIII\Services\Spectre\Request\NewCustomerRequest;
 use FireflyIII\Support\Import\Information\GetSpectreCustomerTrait;
 use FireflyIII\Support\Import\Information\GetSpectreTokenTrait;
 use Illuminate\Support\MessageBag;
@@ -87,7 +82,7 @@ class ChooseLoginHandler implements SpectreJobConfigurationInterface
         Log::debug(sprintf('The selected login by the user is #%d', $selectedLogin));
 
         // if selected login is zero, create a new one.
-        if ($selectedLogin === 0) {
+        if (0 === $selectedLogin) {
             Log::debug('Login is zero, get Spectre customer + token and store it in config.');
             $customer = $this->getCustomer($this->importJob);
             // get a token for the user and redirect to next stage

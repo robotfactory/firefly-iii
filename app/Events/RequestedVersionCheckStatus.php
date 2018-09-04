@@ -30,14 +30,14 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Class RequestedVersionCheckStatus
+ *
+ * @codeCoverageIgnore
  */
 class RequestedVersionCheckStatus extends Event
 {
     use SerializesModels;
 
-    /**
-     * @var User
-     */
+    /** @var User The user */
     public $user;
 
     /**

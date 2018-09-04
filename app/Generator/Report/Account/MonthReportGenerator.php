@@ -25,22 +25,28 @@ namespace FireflyIII\Generator\Report\Account;
 use Carbon\Carbon;
 use FireflyIII\Generator\Report\ReportGeneratorInterface;
 use Illuminate\Support\Collection;
+use Log;
+use Throwable;
 
 /**
  * Class MonthReportGenerator.
+ *
+ * @codeCoverageIgnore
  */
 class MonthReportGenerator implements ReportGeneratorInterface
 {
-    /** @var Collection */
+    /** @var Collection The accounts involved in the report. */
     private $accounts;
-    /** @var Carbon */
+    /** @var Carbon The end date */
     private $end;
-    /** @var Collection */
+    /** @var Collection The expense accounts. */
     private $expense;
-    /** @var Carbon */
+    /** @var Carbon The start date. */
     private $start;
 
     /**
+     * Generate the report.
+     *
      * @return string
      */
     public function generate(): string
@@ -49,14 +55,22 @@ class MonthReportGenerator implements ReportGeneratorInterface
         $expenseIds      = implode(',', $this->expense->pluck('id')->toArray());
         $reportType      = 'account';
         $preferredPeriod = $this->preferredPeriod();
+        try {
+            $result = view(
+                'reports.account.report',
+                compact('accountIds', 'reportType', 'expenseIds', 'preferredPeriod')
+            )->with('start', $this->start)->with('end', $this->end)->render();
+        } catch (Throwable $e) {
+            Log::error(sprintf('Cannot render reports.account.report: %s', $e->getMessage()));
+            $result = 'Could not render report view.';
+        }
 
-        return view(
-            'reports.account.report',
-            compact('accountIds', 'reportType', 'expenseIds', 'preferredPeriod')
-        )->with('start', $this->start)->with('end', $this->end)->render();
+        return $result;
     }
 
     /**
+     * Set accounts.
+     *
      * @param Collection $accounts
      *
      * @return ReportGeneratorInterface
@@ -69,6 +83,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set budgets.
+     *
      * @param Collection $budgets
      *
      * @return ReportGeneratorInterface
@@ -79,6 +95,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set categories.
+     *
      * @param Collection $categories
      *
      * @return ReportGeneratorInterface
@@ -89,6 +107,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set end date.
+     *
      * @param Carbon $date
      *
      * @return ReportGeneratorInterface
@@ -101,6 +121,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set expense collection.
+     *
      * @param Collection $expense
      *
      * @return ReportGeneratorInterface
@@ -113,6 +135,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set start date.
+     *
      * @param Carbon $date
      *
      * @return ReportGeneratorInterface
@@ -125,6 +149,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Set collection of tags.
+     *
      * @param Collection $tags
      *
      * @return ReportGeneratorInterface
@@ -135,6 +161,8 @@ class MonthReportGenerator implements ReportGeneratorInterface
     }
 
     /**
+     * Return the preferred period.
+     *
      * @return string
      */
     protected function preferredPeriod(): string

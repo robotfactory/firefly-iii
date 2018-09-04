@@ -27,20 +27,24 @@ use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Repositories\Account\AccountTaskerInterface;
 use FireflyIII\Support\CacheProperties;
 use Illuminate\Support\Collection;
+use Log;
+use Throwable;
 
 /**
  * Class AccountController.
  */
 class AccountController extends Controller
 {
+
     /**
+     * Show partial overview for account balances.
+     *
      * @param Collection $accounts
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return mixed|string
      *
-     * @throws \Throwable
      */
     public function general(Collection $accounts, Carbon $start, Carbon $end)
     {
@@ -57,8 +61,14 @@ class AccountController extends Controller
         /** @var AccountTaskerInterface $accountTasker */
         $accountTasker = app(AccountTaskerInterface::class);
         $accountReport = $accountTasker->getAccountReport($accounts, $start, $end);
-
-        $result = view('reports.partials.accounts', compact('accountReport'))->render();
+        try {
+            $result = view('reports.partials.accounts', compact('accountReport'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::debug(sprintf('Could not render reports.partials.accounts: %s', $e->getMessage()));
+            $result = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;

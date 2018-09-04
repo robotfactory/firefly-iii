@@ -24,33 +24,34 @@ namespace Tests\Feature\Controllers\Admin;
 
 use Event;
 use FireflyIII\Events\AdminRequestedTestMessage;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Log;
+use Mockery;
 use Tests\TestCase;
 
 /**
  * Class HomeControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class HomeControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\HomeController::index
-     * @covers \FireflyIII\Http\Controllers\Admin\HomeController::__construct
+     * @covers \FireflyIII\Http\Controllers\Admin\HomeController
      */
     public function testIndex(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
         $this->be($this->user());
         $response = $this->get(route('admin.index'));
         $response->assertStatus(200);
@@ -58,8 +59,16 @@ class HomeControllerTest extends TestCase
         $response->assertSee('<ol class="breadcrumb">');
     }
 
+    /**
+     * @covers \FireflyIII\Http\Controllers\Admin\HomeController
+     */
     public function testTestMessage(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
         Event::fake();
 
         $this->be($this->user());

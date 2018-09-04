@@ -23,21 +23,26 @@ declare(strict_types=1);
 namespace FireflyIII\Http\Requests;
 
 /**
- * @codeCoverageIgnore
  * Class AttachmentFormRequest.
+ *
+ * @codeCoverageIgnore
  */
 class AttachmentFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Returns the data required by the controller.
+     *
      * @return array
      */
     public function getAttachmentData(): array
@@ -49,9 +54,11 @@ class AttachmentFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         // fixed
         return [

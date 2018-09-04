@@ -24,6 +24,8 @@ namespace FireflyIII\Models;
 
 use FireflyIII\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -40,6 +42,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * @property string $file_type
  * @property int    $tag_id
  * @property Tag    $tag
+ * @property array  $errors
+ * @property array  extended_status
+ * @property int    id
  */
 class ImportJob extends Model
 {
@@ -58,10 +63,12 @@ class ImportJob extends Model
             'transactions'    => 'array',
             'errors'          => 'array',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['key', 'user_id', 'file_type', 'provider', 'status', 'stage', 'configuration', 'extended_status', 'transactions', 'errors'];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param $value
      *
      * @return mixed
@@ -71,8 +78,11 @@ class ImportJob extends Model
     public static function routeBinder(string $value): ImportJob
     {
         if (auth()->check()) {
-            $key       = trim($value);
-            $importJob = auth()->user()->importJobs()->where('key', $key)->first();
+            $key = trim($value);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var ImportJob $importJob */
+            $importJob = $user->importJobs()->where('key', $key)->first();
             if (null !== $importJob) {
                 return $importJob;
             }
@@ -82,27 +92,27 @@ class ImportJob extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function tag()
+    public function tag(): BelongsTo
     {
         return $this->belongsTo(Tag::class);
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

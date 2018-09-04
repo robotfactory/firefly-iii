@@ -24,9 +24,11 @@ namespace FireflyIII\Http\Controllers;
 
 use FireflyIII\Support\CacheProperties;
 use FireflyIII\Support\Search\SearchInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use View;
+use Log;
+use Throwable;
 
 /**
  * Class SearchController.
@@ -43,7 +45,7 @@ class SearchController extends Controller
         $this->middleware(
             function ($request, $next) {
                 app('view')->share('mainTitleIcon', 'fa-search');
-                app('view')->share('title', trans('firefly.search'));
+                app('view')->share('title', (string)trans('firefly.search'));
 
                 return $next($request);
             }
@@ -51,10 +53,12 @@ class SearchController extends Controller
     }
 
     /**
+     * Do the search.
+     *
      * @param Request         $request
      * @param SearchInterface $searcher
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function index(Request $request, SearchInterface $searcher)
     {
@@ -63,19 +67,20 @@ class SearchController extends Controller
         // parse search terms:
         $searcher->parseQuery($fullQuery);
         $query    = $searcher->getWordsAsString();
-        $subTitle = trans('breadcrumbs.search_result', ['query' => $query]);
+        $subTitle = (string)trans('breadcrumbs.search_result', ['query' => $query]);
 
         return view('search.index', compact('query', 'fullQuery', 'subTitle'));
     }
 
     /**
+     * JSON request that does the work.
+     *
      * @param Request         $request
      * @param SearchInterface $searcher
      *
      * @return \Illuminate\Http\JsonResponse
-     * @throws \Throwable
      */
-    public function search(Request $request, SearchInterface $searcher)
+    public function search(Request $request, SearchInterface $searcher): JsonResponse
     {
         $fullQuery    = (string)$request->get('query');
         $transactions = new Collection;
@@ -95,8 +100,14 @@ class SearchController extends Controller
             $transactions = $searcher->searchTransactions();
             $cache->store($transactions);
         }
-
-        $html = view('search.search', compact('transactions'))->render();
+        try {
+            $html = view('search.search', compact('transactions'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Cannot render search.search: %s', $e->getMessage()));
+            $html = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
 
         return response()->json(['count' => $transactions->count(), 'html' => $html]);
     }

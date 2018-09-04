@@ -25,11 +25,14 @@ namespace FireflyIII\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Model;
-use FireflyIII\Models\PiggyBank;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class PiggyBankRepetition.
+ *
  * @property string $currentamount
+ * @property Carbon $startdate
+ * @property Carbon $targetdate
  */
 class PiggyBankRepetition extends Model
 {
@@ -42,20 +45,17 @@ class PiggyBankRepetition extends Model
         = [
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
-            'deleted_at' => 'datetime',
             'startdate'  => 'date',
             'targetdate' => 'date',
         ];
-    /** @var array */
-    protected $dates = ['startdate', 'targetdate'];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['piggy_bank_id', 'startdate', 'targetdate', 'currentamount'];
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function piggyBank()
+    public function piggyBank(): BelongsTo
     {
         return $this->belongsTo(PiggyBank::class);
     }
@@ -69,7 +69,7 @@ class PiggyBankRepetition extends Model
      *
      * @return EloquentBuilder
      */
-    public function scopeOnDates(EloquentBuilder $query, Carbon $start, Carbon $target)
+    public function scopeOnDates(EloquentBuilder $query, Carbon $start, Carbon $target): EloquentBuilder
     {
         return $query->where('startdate', $start->format('Y-m-d'))->where('targetdate', $target->format('Y-m-d'));
     }
@@ -103,7 +103,7 @@ class PiggyBankRepetition extends Model
      *
      * @param $value
      */
-    public function setCurrentamountAttribute($value)
+    public function setCurrentamountAttribute($value): void
     {
         $this->attributes['currentamount'] = (string)$value;
     }

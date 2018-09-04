@@ -121,57 +121,51 @@ class MappingConverger
     private function getRoleForColumn(int $column, int $mapped): string
     {
         $role = $this->roles[$column] ?? '_ignore';
-        if ($mapped === 0) {
+        if (0 === $mapped) {
             Log::debug(sprintf('Column #%d with role "%s" is not mapped.', $column, $role));
 
             return $role;
         }
-        if (!(isset($this->doMapping[$column]) && $this->doMapping[$column] === true)) {
+        if (!(isset($this->doMapping[$column]) && true === $this->doMapping[$column])) {
+
+            // if the mapping has been filled in already by a role with a higher priority,
+            // ignore the mapping.
+            Log::debug(sprintf('Column #%d ("%s") has something.', $column, $role));
+
 
             return $role;
         }
-        switch ($role) {
-            default:
-                throw new FireflyException(sprintf('Cannot indicate new role for mapped role "%s"', $role)); // @codeCoverageIgnore
-            case 'account-id':
-            case 'account-name':
-            case 'account-iban':
-            case 'account-number':
-                $newRole = 'account-id';
-                break;
-            case 'bill-id':
-            case 'bill-name':
-                $newRole = 'bill-id';
-                break;
-            case 'budget-id':
-            case 'budget-name':
-                $newRole = 'budget-id';
-                break;
-            case 'currency-id':
-            case 'currency-name':
-            case 'currency-code':
-            case 'currency-symbol':
-                $newRole = 'currency-id';
-                break;
-            case 'category-id':
-            case 'category-name':
-                $newRole = 'category-id';
-                break;
-            case 'foreign-currency-id':
-            case 'foreign-currency-code':
-                $newRole = 'foreign-currency-id';
-                break;
-            case 'opposing-id':
-            case 'opposing-name':
-            case 'opposing-iban':
-            case 'opposing-number':
-                $newRole = 'opposing-id';
-                break;
+        $roleMapping = [
+            'account-id'            => 'account-id',
+            'account-name'          => 'account-id',
+            'account-iban'          => 'account-id',
+            'account-number'        => 'account-id',
+            'bill-id'               => 'bill-id',
+            'bill-name'             => 'bill-id',
+            'budget-id'             => 'budget-id',
+            'budget-name'           => 'budget-id',
+            'currency-id'           => 'currency-id',
+            'currency-name'         => 'currency-id',
+            'currency-code'         => 'currency-id',
+            'currency-symbol'       => 'currency-id',
+            'category-id'           => 'category-id',
+            'category-name'         => 'category-id',
+            'foreign-currency-id'   => 'foreign-currency-id',
+            'foreign-currency-code' => 'foreign-currency-id',
+            'opposing-id'           => 'opposing-id',
+            'opposing-name'         => 'opposing-id',
+            'opposing-iban'         => 'opposing-id',
+            'opposing-number'       => 'opposing-id',
+        ];
+        if (!isset($roleMapping[$role])) {
+            throw new FireflyException(sprintf('Cannot indicate new role for mapped role "%s"', $role)); // @codeCoverageIgnore
         }
+        $newRole = $roleMapping[$role];
         Log::debug(sprintf('Role was "%s", but because of mapping (mapped to #%d), role becomes "%s"', $role, $mapped, $newRole));
 
         // also store the $mapped values in a "mappedValues" array.
         $this->mappedValues[$newRole][] = $mapped;
+        Log::debug(sprintf('Values mapped to role "%s" are: ', $newRole), $this->mappedValues[$newRole]);
 
         return $newRole;
     }
@@ -189,7 +183,7 @@ class MappingConverger
             $value        = trim($value);
             $originalRole = $this->roles[$columnIndex] ?? '_ignore';
             Log::debug(sprintf('Now at column #%d (%s), value "%s"', $columnIndex, $originalRole, $value));
-            if ($originalRole !== '_ignore' && \strlen($value) > 0) {
+            if ('_ignore' !== $originalRole && \strlen($value) > 0) {
 
                 // is a mapped value present?
                 $mapped = $this->mapping[$columnIndex][$value] ?? 0;

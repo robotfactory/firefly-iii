@@ -25,15 +25,27 @@ namespace FireflyIII\Repositories\User;
 use FireflyIII\Models\BudgetLimit;
 use FireflyIII\Models\Role;
 use FireflyIII\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Log;
-use Preferences;
 
 /**
  * Class UserRepository.
+ *
+ * @SuppressWarnings(PHPMD.TooManyPublicMethods)
  */
 class UserRepository implements UserRepositoryInterface
 {
+    /**
+     * Constructor.
+     */
+    public function __construct()
+    {
+        if ('testing' === env('APP_ENV')) {
+            Log::warning(sprintf('%s should not be instantiated in the TEST environment!', \get_class($this)));
+        }
+    }
+
     /**
      * @return Collection
      */
@@ -50,9 +62,19 @@ class UserRepository implements UserRepositoryInterface
      */
     public function attachRole(User $user, string $role): bool
     {
-        $admin = Role::where('name', 'owner')->first();
-        $user->attachRole($admin);
-        $user->save();
+        $roleObject = Role::where('name', $role)->first();
+        if (null === $roleObject) {
+            Log::error(sprintf('Could not find role "%s" in attachRole()', $role));
+
+            return false;
+        }
+
+        try {
+            $user->roles()->attach($roleObject);
+        } catch (QueryException $e) {
+            // don't care
+            Log::error(sprintf('Query exception when giving user a role: %s', $e->getMessage()));
+        }
 
         return true;
     }
@@ -67,18 +89,19 @@ class UserRepository implements UserRepositoryInterface
      * @see updateEmail
      *
      * @return bool
+     * @throws \Exception
      */
     public function changeEmail(User $user, string $newEmail): bool
     {
         $oldEmail = $user->email;
 
         // save old email as pref
-        Preferences::setForUser($user, 'previous_email_latest', $oldEmail);
-        Preferences::setForUser($user, 'previous_email_' . date('Y-m-d-H-i-s'), $oldEmail);
+        app('preferences')->setForUser($user, 'previous_email_latest', $oldEmail);
+        app('preferences')->setForUser($user, 'previous_email_' . date('Y-m-d-H-i-s'), $oldEmail);
 
         // set undo and confirm token:
-        Preferences::setForUser($user, 'email_change_undo_token', (string)bin2hex(random_bytes(16)));
-        Preferences::setForUser($user, 'email_change_confirm_token', (string)bin2hex(random_bytes(16)));
+        app('preferences')->setForUser($user, 'email_change_undo_token', bin2hex(random_bytes(16)));
+        app('preferences')->setForUser($user, 'email_change_confirm_token', bin2hex(random_bytes(16)));
         // update user
 
         $user->email        = $newEmail;
@@ -155,22 +178,6 @@ class UserRepository implements UserRepositoryInterface
     }
 
     /**
-     * @param int $userId
-     *
-     * @deprecated
-     * @return User
-     */
-    public function find(int $userId): User
-    {
-        $user = User::find($userId);
-        if (null !== $user) {
-            return $user;
-        }
-
-        return new User;
-    }
-
-    /**
      * @param string $email
      *
      * @return User|null
@@ -197,7 +204,7 @@ class UserRepository implements UserRepositoryInterface
      */
     public function first(): ?User
     {
-        return User::first();
+        return User::orderBy('id', 'ASC')->first();
     }
 
     /**
@@ -222,14 +229,14 @@ class UserRepository implements UserRepositoryInterface
         $return = [];
 
         // two factor:
-        $is2faEnabled      = Preferences::getForUser($user, 'twoFactorAuthEnabled', false)->data;
-        $has2faSecret      = null !== Preferences::getForUser($user, 'twoFactorAuthSecret');
+        $is2faEnabled      = app('preferences')->getForUser($user, 'twoFactorAuthEnabled', false)->data;
+        $has2faSecret      = null !== app('preferences')->getForUser($user, 'twoFactorAuthSecret');
         $return['has_2fa'] = false;
         if ($is2faEnabled && $has2faSecret) {
             $return['has_2fa'] = true;
         }
 
-        $return['is_admin']            = $user->hasRole('owner');
+        $return['is_admin']            = $this->hasRole($user, 'owner');
         $return['blocked']             = 1 === (int)$user->blocked;
         $return['blocked_code']        = $user->blocked_code;
         $return['accounts']            = $user->accounts()->count();
@@ -264,7 +271,14 @@ class UserRepository implements UserRepositoryInterface
      */
     public function hasRole(User $user, string $role): bool
     {
-        return $user->hasRole($role);
+        /** @var Role $userRole */
+        foreach ($user->roles as $userRole) {
+            if ($userRole->name === $role) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -329,8 +343,8 @@ class UserRepository implements UserRepositoryInterface
         $oldEmail = $user->email;
 
         // save old email as pref
-        Preferences::setForUser($user, 'admin_previous_email_latest', $oldEmail);
-        Preferences::setForUser($user, 'admin_previous_email_' . date('Y-m-d-H-i-s'), $oldEmail);
+        app('preferences')->setForUser($user, 'admin_previous_email_latest', $oldEmail);
+        app('preferences')->setForUser($user, 'admin_previous_email_' . date('Y-m-d-H-i-s'), $oldEmail);
 
         $user->email = $newEmail;
         $user->save();

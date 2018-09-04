@@ -18,36 +18,39 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+/** @noinspection PhpMethodParametersCountMismatchInspection */
 declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\InternalTransferFilter;
 use FireflyIII\Http\Requests\TagFormRequest;
 use FireflyIII\Models\Tag;
 use FireflyIII\Repositories\Tag\TagRepositoryInterface;
-use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\PeriodOverview;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use View;
 
 /**
  * Class TagController.
  */
 class TagController extends Controller
 {
-    /** @var TagRepositoryInterface */
+    use PeriodOverview;
+
+    /** @var TagRepositoryInterface The tag repository. */
     protected $repository;
 
     /**
-     *
+     * TagController constructor.
      */
     public function __construct()
     {
         parent::__construct();
-        View::share('hideTags', true);
+        app('view')->share('hideTags', true);
         $this->redirectUri = route('tags.index');
 
         $this->middleware(
@@ -64,11 +67,11 @@ class TagController extends Controller
     /**
      * Create a new tag.
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function create()
     {
-        $subTitle     = trans('firefly.new_tag');
+        $subTitle     = (string)trans('firefly.new_tag');
         $subTitleIcon = 'fa-tag';
 
         // put previous url in session if not redirect from store (not "create another").
@@ -85,11 +88,11 @@ class TagController extends Controller
      *
      * @param Tag $tag
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function delete(Tag $tag)
     {
-        $subTitle = trans('breadcrumbs.delete_tag', ['tag' => $tag->tag]);
+        $subTitle = (string)trans('breadcrumbs.delete_tag', ['tag' => $tag->tag]);
 
         // put previous url in session
         $this->rememberPreviousUri('tags.delete.uri');
@@ -98,11 +101,13 @@ class TagController extends Controller
     }
 
     /**
+     * Destroy a tag.
+     *
      * @param Tag $tag
      *
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
-    public function destroy(Tag $tag)
+    public function destroy(Tag $tag): RedirectResponse
     {
         $tagName = $tag->tag;
         $this->repository->destroy($tag);
@@ -118,11 +123,11 @@ class TagController extends Controller
      *
      * @param Tag $tag
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function edit(Tag $tag)
     {
-        $subTitle     = trans('firefly.edit_tag', ['tag' => $tag->tag]);
+        $subTitle     = (string)trans('firefly.edit_tag', ['tag' => $tag->tag]);
         $subTitleIcon = 'fa-tag';
 
         // put previous url in session if not redirect from store (not "return_to_edit").
@@ -135,11 +140,11 @@ class TagController extends Controller
     }
 
     /**
-     * View all tags.
+     * Edit a tag.
      *
      * @param TagRepositoryInterface $repository
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function index(TagRepositoryInterface $repository)
     {
@@ -163,78 +168,86 @@ class TagController extends Controller
     }
 
     /**
-     * @param Request                $request
-     * @param TagRepositoryInterface $repository
-     * @param Tag                    $tag
-     * @param string                 $moment
+     * Show a single tag.
      *
-     * @return View
+     * @param Request     $request
+     * @param Tag         $tag
+     * @param Carbon|null $start
+     * @param Carbon|null $end
+     *
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
-    public function show(Request $request, TagRepositoryInterface $repository, Tag $tag, string $moment = '')
+    public function show(Request $request, Tag $tag, Carbon $start = null, Carbon $end = null)
     {
         // default values:
-        $subTitle     = $tag->tag;
         $subTitleIcon = 'fa-tag';
         $page         = (int)$request->get('page');
         $pageSize     = (int)app('preferences')->get('listPageSize', 50)->data;
-        $range        = app('preferences')->get('viewRange', '1M')->data;
-        $start        = null;
-        $end          = null;
-        $periods      = new Collection;
-        $path         = route('tags.show', [$tag->id]);
+        $start        = $start ?? session('start');
+        $end          = $end ?? session('end');
+        $subTitle     = trans(
+            'firefly.journals_in_period_for_tag', ['tag' => $tag->tag, 'start' => $start->formatLocalized($this->monthAndDayFormat),
+                                                   'end' => $end->formatLocalized($this->monthAndDayFormat),]
+        );
+        $periods      = $this->getTagPeriodOverview($tag);
+        $path         = route('tags.show', [$tag->id, $start->format('Y-m-d'), $end->format('Y-m-d')]);
 
-        // prep for "all" view.
-        if ('all' === $moment) {
-            $subTitle = trans('firefly.all_journals_for_tag', ['tag' => $tag->tag]);
-            $start    = $repository->firstUseDate($tag);
-            $end      = new Carbon;
-            $path     = route('tags.show', [$tag->id, 'all']);
-        }
-
-        // prep for "specific date" view.
-        if ('all' !== $moment && \strlen($moment) > 0) {
-            $start    = new Carbon($moment);
-            $end      = app('navigation')->endOfPeriod($start, $range);
-            $subTitle = trans(
-                'firefly.journals_in_period_for_tag',
-                ['tag'   => $tag->tag,
-                 'start' => $start->formatLocalized($this->monthAndDayFormat), 'end' => $end->formatLocalized($this->monthAndDayFormat),]
-            );
-            $periods  = $this->getPeriodOverview($tag);
-            $path     = route('tags.show', [$tag->id, $moment]);
-        }
-
-        // prep for current period
-        if ('' === $moment) {
-            /** @var Carbon $start */
-            $start = clone session('start', app('navigation')->startOfPeriod(new Carbon, $range));
-            /** @var Carbon $end */
-            $end      = clone session('end', app('navigation')->endOfPeriod(new Carbon, $range));
-            $periods  = $this->getPeriodOverview($tag);
-            $subTitle = trans(
-                'firefly.journals_in_period_for_tag',
-                ['tag' => $tag->tag, 'start' => $start->formatLocalized($this->monthAndDayFormat), 'end' => $end->formatLocalized($this->monthAndDayFormat)]
-            );
-        }
-
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAllAssetAccounts()->setRange($start, $end)->setLimit($pageSize)->setPage($page)->withOpposingAccount()
                   ->setTag($tag)->withBudgetInformation()->withCategoryInformation()->removeFilter(InternalTransferFilter::class);
-        $transactions = $collector->getPaginatedJournals();
+        $transactions = $collector->getPaginatedTransactions();
         $transactions->setPath($path);
 
-        $sums = $repository->sumsOfTag($tag, $start, $end);
+        $sums = $this->repository->sumsOfTag($tag, $start, $end);
 
-        return view('tags.show', compact('apiKey', 'tag', 'sums', 'periods', 'subTitle', 'subTitleIcon', 'transactions', 'start', 'end', 'moment'));
+        return view('tags.show', compact('tag', 'sums', 'periods', 'subTitle', 'subTitleIcon', 'transactions', 'start', 'end'));
     }
 
     /**
+     * Show a single tag over all time.
+     *
+     * @param Request $request
+     * @param Tag     $tag
+     *
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     */
+    public function showAll(Request $request, Tag $tag)
+    {
+        // default values:
+        $subTitleIcon = 'fa-tag';
+        $page         = (int)$request->get('page');
+        $pageSize     = (int)app('preferences')->get('listPageSize', 50)->data;
+        $periods      = new Collection;
+        $subTitle     = (string)trans('firefly.all_journals_for_tag', ['tag' => $tag->tag]);
+        $start        = $this->repository->firstUseDate($tag) ?? new Carbon;
+        $end          = new Carbon;
+        $path         = route('tags.show', [$tag->id, 'all']);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
+        $collector->setAllAssetAccounts()->setRange($start, $end)->setLimit($pageSize)->setPage($page)->withOpposingAccount()
+                  ->setTag($tag)->withBudgetInformation()->withCategoryInformation()->removeFilter(InternalTransferFilter::class);
+        $transactions = $collector->getPaginatedTransactions();
+        $transactions->setPath($path);
+        $sums = $this->repository->sumsOfTag($tag, $start, $end);
+
+        return view('tags.show', compact('tag', 'sums', 'periods', 'subTitle', 'subTitleIcon', 'transactions', 'start', 'end'));
+    }
+
+    /**
+     * Store a tag.
+     *
      * @param TagFormRequest $request
      *
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
-    public function store(TagFormRequest $request)
+    public function store(TagFormRequest $request): RedirectResponse
     {
         $data = $request->collectTagData();
         $this->repository->store($data);
@@ -242,24 +255,28 @@ class TagController extends Controller
         session()->flash('success', (string)trans('firefly.created_tag', ['tag' => $data['tag']]));
         app('preferences')->mark();
 
+        $redirect = redirect($this->getPreviousUri('tags.create.uri'));
         if (1 === (int)$request->get('create_another')) {
             // @codeCoverageIgnoreStart
             session()->put('tags.create.fromStore', true);
 
-            return redirect(route('tags.create'))->withInput();
+            $redirect = redirect(route('tags.create'))->withInput();
             // @codeCoverageIgnoreEnd
         }
 
-        return redirect($this->getPreviousUri('tags.create.uri'));
+        return $redirect;
+
     }
 
     /**
+     * Update a tag.
+     *
      * @param TagFormRequest $request
      * @param Tag            $tag
      *
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
-    public function update(TagFormRequest $request, Tag $tag)
+    public function update(TagFormRequest $request, Tag $tag): RedirectResponse
     {
         $data = $request->collectTagData();
         $this->repository->update($tag, $data);
@@ -267,63 +284,18 @@ class TagController extends Controller
         session()->flash('success', (string)trans('firefly.updated_tag', ['tag' => $data['tag']]));
         app('preferences')->mark();
 
+        $redirect = redirect($this->getPreviousUri('tags.edit.uri'));
         if (1 === (int)$request->get('return_to_edit')) {
             // @codeCoverageIgnoreStart
             session()->put('tags.edit.fromUpdate', true);
 
-            return redirect(route('tags.edit', [$tag->id]))->withInput(['return_to_edit' => 1]);
+            $redirect = redirect(route('tags.edit', [$tag->id]))->withInput(['return_to_edit' => 1]);
             // @codeCoverageIgnoreEnd
         }
 
         // redirect to previous URL.
-        return redirect($this->getPreviousUri('tags.edit.uri'));
+        return $redirect;
     }
 
-    /**
-     * @param Tag $tag
-     *
-     * @return Collection
-     */
-    private function getPeriodOverview(Tag $tag): Collection
-    {
-        // get first and last tag date from tag:
-        $range = app('preferences')->get('viewRange', '1M')->data;
-        $end   = app('navigation')->endOfX($this->repository->lastUseDate($tag), $range, null);
-        $start = $this->repository->firstUseDate($tag);
 
-
-        // properties for entries with their amounts.
-        $cache = new CacheProperties;
-        $cache->addProperty($start);
-        $cache->addProperty($end);
-        $cache->addProperty('tag.entries');
-        $cache->addProperty($tag->id);
-
-        if ($cache->has()) {
-            return $cache->get(); // @codeCoverageIgnore
-        }
-
-        $collection = new Collection;
-        $currentEnd = clone $end;
-        // while end larger or equal to start
-        while ($currentEnd >= $start) {
-            $currentStart = app('navigation')->startOfPeriod($currentEnd, $range);
-
-            // get expenses and what-not in this period and this tag.
-            $arr = [
-                'string' => $end->format('Y-m-d'),
-                'name'   => app('navigation')->periodShow($currentEnd, $range),
-                'date'   => clone $end,
-                'spent'  => $this->repository->spentInPeriod($tag, $currentStart, $currentEnd),
-                'earned' => $this->repository->earnedInPeriod($tag, $currentStart, $currentEnd),
-            ];
-            $collection->push($arr);
-
-            $currentEnd = clone $currentStart;
-            $currentEnd->subDay();
-        }
-        $cache->store($collection);
-
-        return $collection;
-    }
 }

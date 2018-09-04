@@ -29,8 +29,6 @@ use FireflyIII\Http\Requests\UserFormRequest;
 use FireflyIII\Repositories\User\UserRepositoryInterface;
 use FireflyIII\User;
 use Log;
-use Preferences;
-use View;
 
 /**
  * Class UserController.
@@ -38,7 +36,7 @@ use View;
 class UserController extends Controller
 {
     /**
-     *
+     * UserController constructor.
      */
     public function __construct()
     {
@@ -57,18 +55,22 @@ class UserController extends Controller
     }
 
     /**
+     * Delete a user.
+     *
      * @param User $user
      *
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function delete(User $user)
     {
-        $subTitle = trans('firefly.delete_user', ['email' => $user->email]);
+        $subTitle = (string)trans('firefly.delete_user', ['email' => $user->email]);
 
         return view('admin.users.delete', compact('user', 'subTitle'));
     }
 
     /**
+     * Destroy a user.
+     *
      * @param User                    $user
      * @param UserRepositoryInterface $repository
      *
@@ -83,9 +85,11 @@ class UserController extends Controller
     }
 
     /**
+     * Edit user form.
+     *
      * @param User $user
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function edit(User $user)
     {
@@ -108,9 +112,11 @@ class UserController extends Controller
     }
 
     /**
+     * Show index of user manager.
+     *
      * @param UserRepositoryInterface $repository
      *
-     * @return View
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function index(UserRepositoryInterface $repository)
     {
@@ -120,13 +126,13 @@ class UserController extends Controller
 
         // add meta stuff.
         $users->each(
-            function (User $user) {
+            function (User $user) use ($repository) {
                 $list          = ['twoFactorAuthEnabled', 'twoFactorAuthSecret'];
-                $preferences   = Preferences::getArrayForUser($user, $list);
-                $user->isAdmin = $user->hasRole('owner');
+                $preferences   = app('preferences')->getArrayForUser($user, $list);
+                $user->isAdmin = $repository->hasRole($user, 'owner');
                 $is2faEnabled  = 1 === $preferences['twoFactorAuthEnabled'];
                 $has2faSecret  = null !== $preferences['twoFactorAuthSecret'];
-                $user->has2FA  = ($is2faEnabled && $has2faSecret) ? true : false;
+                $user->has2FA  = ($is2faEnabled && $has2faSecret);
                 $user->prefs   = $preferences;
             }
         );
@@ -135,6 +141,8 @@ class UserController extends Controller
     }
 
     /**
+     * Show single user.
+     *
      * @param UserRepositoryInterface $repository
      * @param User                    $user
      *
@@ -149,19 +157,15 @@ class UserController extends Controller
         $information   = $repository->getUserData($user);
 
         return view(
-            'admin.users.show',
-            compact(
-                'title',
-                'mainTitleIcon',
-                'subTitle',
-                'subTitleIcon',
-                'information',
-                'user'
-            )
+            'admin.users.show', compact(
+                                  'title', 'mainTitleIcon', 'subTitle', 'subTitleIcon', 'information', 'user'
+                              )
         );
     }
 
     /**
+     * Update single user.
+     *
      * @param UserFormRequest         $request
      * @param User                    $user
      * @param UserRepositoryInterface $repository
@@ -182,17 +186,17 @@ class UserController extends Controller
         $repository->updateEmail($user, $data['email']);
 
         session()->flash('success', (string)trans('firefly.updated_user', ['email' => $user->email]));
-        Preferences::mark();
-
+        app('preferences')->mark();
+        $redirect = redirect($this->getPreviousUri('users.edit.uri'));
         if (1 === (int)$request->get('return_to_edit')) {
             // @codeCoverageIgnoreStart
             session()->put('users.edit.fromUpdate', true);
 
-            return redirect(route('admin.users.edit', [$user->id]))->withInput(['return_to_edit' => 1]);
+            $redirect = redirect(route('admin.users.edit', [$user->id]))->withInput(['return_to_edit' => 1]);
             // @codeCoverageIgnoreEnd
         }
 
         // redirect to previous URL.
-        return redirect($this->getPreviousUri('users.edit.uri'));
+        return $redirect;
     }
 }

@@ -28,18 +28,22 @@ namespace FireflyIII\Http\Requests;
 class BulkEditJournalRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
 
         // fixed

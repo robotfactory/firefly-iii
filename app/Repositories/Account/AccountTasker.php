@@ -23,13 +23,12 @@ declare(strict_types=1);
 namespace FireflyIII\Repositories\Account;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Models\Transaction;
 use FireflyIII\Models\TransactionType;
 use FireflyIII\User;
 use Illuminate\Support\Collection;
 use Log;
-use Steam;
 
 /**
  * Class AccountTasker.
@@ -40,18 +39,29 @@ class AccountTasker implements AccountTaskerInterface
     private $user;
 
     /**
+     * Constructor.
+     */
+    public function __construct()
+    {
+        if ('testing' === env('APP_ENV')) {
+            Log::warning(sprintf('%s should not be instantiated in the TEST environment!', \get_class($this)));
+        }
+    }
+
+    /**
      * @param Collection $accounts
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return array
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     public function getAccountReport(Collection $accounts, Carbon $start, Carbon $end): array
     {
         $yesterday = clone $start;
         $yesterday->subDay();
-        $startSet = Steam::balancesByAccounts($accounts, $yesterday);
-        $endSet   = Steam::balancesByAccounts($accounts, $end);
+        $startSet = app('steam')->balancesByAccounts($accounts, $yesterday);
+        $endSet   = app('steam')->balancesByAccounts($accounts, $end);
 
         Log::debug('Start of accountreport');
 
@@ -80,7 +90,7 @@ class AccountTasker implements AccountTaskerInterface
             $entry['end_balance']   = $endSet[$account->id] ?? '0';
 
             // first journal exists, and is on start, then this is the actual opening balance:
-            if (null !== $first->id && $first->date->isSameDay($start)) {
+            if (null !== $first && $first->date->isSameDay($start)) {
                 Log::debug(sprintf('Date of first journal for %s is %s', $account->name, $first->date->format('Y-m-d')));
                 $entry['start_balance'] = $first->transactions()->where('account_id', $account->id)->first()->amount;
                 Log::debug(sprintf('Account %s was opened on %s, so opening balance is %f', $account->name, $start->format('Y-m-d'), $entry['start_balance']));
@@ -108,12 +118,12 @@ class AccountTasker implements AccountTaskerInterface
         // get all expenses for the given accounts in the given period!
         // also transfers!
         // get all transactions:
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAccounts($accounts)->setRange($start, $end);
         $collector->setTypes([TransactionType::WITHDRAWAL, TransactionType::TRANSFER])
                   ->withOpposingAccount();
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
         $transactions = $transactions->filter(
             function (Transaction $transaction) {
                 // return negative amounts only.
@@ -150,12 +160,12 @@ class AccountTasker implements AccountTaskerInterface
         // get all expenses for the given accounts in the given period!
         // also transfers!
         // get all transactions:
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAccounts($accounts)->setRange($start, $end);
         $collector->setTypes([TransactionType::DEPOSIT, TransactionType::TRANSFER])
                   ->withOpposingAccount();
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
         $transactions = $transactions->filter(
             function (Transaction $transaction) {
                 // return positive amounts only.
@@ -183,7 +193,7 @@ class AccountTasker implements AccountTaskerInterface
     /**
      * @param User $user
      */
-    public function setUser(User $user)
+    public function setUser(User $user): void
     {
         $this->user = $user;
     }
@@ -192,6 +202,7 @@ class AccountTasker implements AccountTaskerInterface
      * @param Collection $transactions
      *
      * @return array
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     private function groupByOpposing(Collection $transactions): array
     {

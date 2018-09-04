@@ -26,17 +26,19 @@ use Illuminate\Support\Collection;
 
 /**
  * Class Balance.
+ *
+ * @codeCoverageIgnore
  */
 class Balance
 {
-    /** @var BalanceHeader */
+    /** @var BalanceHeader Header row. */
     protected $balanceHeader;
 
-    /** @var Collection */
+    /** @var Collection Collection of lines. */
     protected $balanceLines;
 
     /**
-     *
+     * Balance constructor.
      */
     public function __construct()
     {
@@ -44,14 +46,18 @@ class Balance
     }
 
     /**
+     * Add a line.
+     *
      * @param BalanceLine $line
      */
-    public function addBalanceLine(BalanceLine $line)
+    public function addBalanceLine(BalanceLine $line): void
     {
         $this->balanceLines->push($line);
     }
 
     /**
+     * Get the header.
+     *
      * @return BalanceHeader
      */
     public function getBalanceHeader(): BalanceHeader
@@ -60,14 +66,18 @@ class Balance
     }
 
     /**
+     * Set the header.
+     *
      * @param BalanceHeader $balanceHeader
      */
-    public function setBalanceHeader(BalanceHeader $balanceHeader)
+    public function setBalanceHeader(BalanceHeader $balanceHeader): void
     {
         $this->balanceHeader = $balanceHeader;
     }
 
     /**
+     * Get all lines.
+     *
      * @return Collection
      */
     public function getBalanceLines(): Collection
@@ -76,9 +86,11 @@ class Balance
     }
 
     /**
+     * Set all lines.
+     *
      * @param Collection $balanceLines
      */
-    public function setBalanceLines(Collection $balanceLines)
+    public function setBalanceLines(Collection $balanceLines): void
     {
         $this->balanceLines = $balanceLines;
     }

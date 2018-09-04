@@ -22,8 +22,8 @@ declare(strict_types=1);
 
 namespace FireflyIII\Import\Prerequisites;
 
-use bunq\Exception\BunqException;
 use bunq\Util\BunqEnumApiEnvironmentType;
+use Exception;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Services\Bunq\ApiContext;
 use FireflyIII\Services\IP\IPRetrievalInterface;
@@ -36,12 +36,13 @@ use Log;
  */
 class BunqPrerequisites implements PrerequisitesInterface
 {
-    /** @var User */
+    /** @var User The current user */
     private $user;
 
     /**
-     * @codeCoverageIgnore
      * Returns view name that allows user to fill in prerequisites.
+     *
+     * @codeCoverageIgnore
      *
      * @return string
      */
@@ -86,10 +87,11 @@ class BunqPrerequisites implements PrerequisitesInterface
     }
 
     /**
-     * @codeCoverageIgnore
      * Set the user for this Prerequisites-routine. Class is expected to implement and save this.
      *
      * @param User $user
+     *
+     * @codeCoverageIgnore
      */
     public function setUser(User $user): void
     {
@@ -104,6 +106,7 @@ class BunqPrerequisites implements PrerequisitesInterface
      * @param array $data
      *
      * @return MessageBag
+     *
      */
     public function storePrerequisites(array $data): MessageBag
     {
@@ -112,14 +115,14 @@ class BunqPrerequisites implements PrerequisitesInterface
         Log::debug('Storing bunq API key');
         app('preferences')->setForUser($this->user, 'bunq_api_key', $apiKey);
         app('preferences')->setForUser($this->user, 'bunq_external_ip', $externalIP);
-
         $environment       = $this->getBunqEnvironment();
         $deviceDescription = 'Firefly III v' . config('firefly.version');
         $permittedIps      = [$externalIP];
+        Log::debug(sprintf('Environment for bunq is %s', $environment->getChoiceString()));
 
         try {
             /** @var ApiContext $object */
-            $object  = app(ApiContext::class);
+            $object     = app(ApiContext::class);
             $apiContext = $object->create($environment, $apiKey, $deviceDescription, $permittedIps);
         } catch (FireflyException $e) {
             $messages = new MessageBag();
@@ -131,7 +134,7 @@ class BunqPrerequisites implements PrerequisitesInterface
         try {
             $json = $apiContext->toJson();
             // @codeCoverageIgnoreStart
-        } catch (BunqException $e) {
+        } catch (Exception $e) {
             $messages = new MessageBag();
             $messages->add('bunq_error', $e->getMessage());
 
@@ -146,8 +149,10 @@ class BunqPrerequisites implements PrerequisitesInterface
     }
 
     /**
-     * @codeCoverageIgnore
+     * Get correct bunq environment.
+     *
      * @return BunqEnumApiEnvironmentType
+     * @codeCoverageIgnore
      */
     private function getBunqEnvironment(): BunqEnumApiEnvironmentType
     {
@@ -163,6 +168,8 @@ class BunqPrerequisites implements PrerequisitesInterface
     }
 
     /**
+     * Check if we have API context.
+     *
      * @return bool
      */
     private function hasApiContext(): bool
@@ -179,6 +186,8 @@ class BunqPrerequisites implements PrerequisitesInterface
     }
 
     /**
+     * Check if we have the API key.
+     *
      * @return bool
      */
     private function hasApiKey(): bool
@@ -195,6 +204,8 @@ class BunqPrerequisites implements PrerequisitesInterface
     }
 
     /**
+     * Checks if we have an external IP.
+     *
      * @return bool
      */
     private function hasExternalIP(): bool

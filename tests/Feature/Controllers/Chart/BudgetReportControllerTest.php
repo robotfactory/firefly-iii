@@ -25,7 +25,7 @@ namespace Tests\Feature\Controllers\Chart;
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
 use FireflyIII\Helpers\Chart\MetaPieChartInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\OpposingAccountFilter;
 use FireflyIII\Helpers\Filter\PositiveAmountFilter;
 use FireflyIII\Helpers\Filter\TransferFilter;
@@ -39,25 +39,20 @@ use Tests\TestCase;
 
 /**
  * Class BudgetReportControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class BudgetReportControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::accountExpense
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::__construct
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController
      */
     public function testAccountExpense(): void
     {
@@ -80,7 +75,7 @@ class BudgetReportControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::budgetExpense
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController
      */
     public function testBudgetExpense(): void
     {
@@ -102,15 +97,12 @@ class BudgetReportControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::mainChart
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::filterBudgetLimits
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::getExpenses
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController::groupByBudget
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetReportController
      */
     public function testMainChart(): void
     {
         $generator   = $this->mock(GeneratorInterface::class);
-        $collector   = $this->mock(JournalCollectorInterface::class);
+        $collector   = $this->mock(TransactionCollectorInterface::class);
         $budgetRepos = $this->mock(BudgetRepositoryInterface::class);
 
         $one                              = factory(BudgetLimit::class)->make();
@@ -136,7 +128,7 @@ class BudgetReportControllerTest extends TestCase
         $collector->shouldReceive('addFilter')->withArgs([PositiveAmountFilter::class])->andReturnSelf();
         $collector->shouldReceive('setBudgets')->andReturnSelf();
         $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection([$transaction]));
+        $collector->shouldReceive('getTransactions')->andReturn(new Collection([$transaction]));
         $generator->shouldReceive('multiSet')->andReturn([])->once();
 
         $this->be($this->user());

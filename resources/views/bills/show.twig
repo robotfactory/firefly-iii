@@ -27,7 +27,7 @@
                     <table class="table table-striped">
                         <tr>
                             <td colspan="2">
-                                {{ trans('firefly.match_between_amounts', {low: object.data.amount_min|formatAmount, high: object.data.amount_max|formatAmount })|raw }}
+                                {{ trans('firefly.match_between_amounts', {low: formatAmountByCurrency(object.data.currency,object.data.amount_min), high: formatAmountByCurrency(object.data.currency,object.data.amount_max) })|raw }}
                                 {{ 'repeats'|_ }}
                                 {{ trans('firefly.repeat_freq_' ~object.data.repeat_freq) }}.
                             </td>
@@ -55,18 +55,18 @@
                         </tr>
                         <tr>
                             <td>{{ trans('firefly.average_bill_amount_year', {year: year}) }}</td>
-                            <td>{{ yearAverage|formatAmount }}</td>
+                            <td>{{ formatAmountByCurrency(object.data.currency,yearAverage) }}</td>
                         </tr>
                         <tr>
                             <td>{{ 'average_bill_amount_overall'|_ }}</td>
-                            <td>{{ overallAverage|formatAmount }}</td>
+                            <td>{{ formatAmountByCurrency(object.data.currency, overallAverage) }}</td>
                         </tr>
                     </table>
                 </div>
                 <div class="box-footer">
                     <div class="btn-group">
                         <a class="btn btn-default" href="{{ route('bills.edit', [object.data.id]) }}">{{ 'edit'|_ }}</a>
-                        <a class="btn btn-danger" href="{{ route('bills.edit', [object.data.id]) }}">{{ 'delete'|_ }}</a>
+                        <a class="btn btn-danger" href="{{ route('bills.delete', [object.data.id]) }}">{{ 'delete'|_ }}</a>
                     </div>
                 </div>
             </div>
@@ -91,13 +91,13 @@
                     <a href="{{ route('bills.rescan',object.data.id) }}" class="btn btn-default">{{ 'rescan_old'|_ }}</a>
                 </div>
             </div>
-            {% if object.data.notes != '' %}
+            {% if object.data.notes.data[0] %}
             <div class="box">
                 <div class="box-header with-border">
                     <h3 class="box-title">{{ 'notes'|_ }}</h3>
                 </div>
                 <div class="box-body table-responsive">
-                    {{ object.data.notes }}
+                    {{ object.data.notes.data[0].markdown|raw }}
                 </div>
             </div>
             {% endif %}
@@ -164,7 +164,7 @@
                     <h3 class="box-title">{{ 'connected_journals'|_ }}</h3>
                 </div>
                 <div class="box-body">
-                    {% include 'list.journals' %}
+                    {% include 'list.transactions' with {showCategories: true, showBudgets: true} %}
                 </div>
             </div>
         </div>
@@ -174,6 +174,7 @@
 
 {% block scripts %}
     <script type="text/javascript">
+        var billCurrencySymbol = "{{ object.data.currency.symbol }}";
         var billUri = '{{ route('chart.bill.single', [object.data.id]) }}';
     </script>
     <script type="text/javascript" src="js/lib/Chart.bundle.min.js?v={{ FF_VERSION }}"></script>

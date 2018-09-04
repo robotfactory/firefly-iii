@@ -25,6 +25,7 @@ namespace Tests\Unit\Factory;
 
 
 use FireflyIII\Factory\BudgetFactory;
+use Log;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,16 @@ use Tests\TestCase;
  */
 class BudgetFactoryTest extends TestCase
 {
+
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
     /**
      * Put in ID, return it.
      *
@@ -91,7 +102,7 @@ class BudgetFactoryTest extends TestCase
         /** @var BudgetFactory $factory */
         $factory = app(BudgetFactory::class);
         $factory->setUser($this->user());
-        $this->assertNull($factory->find(null, 'I dont exist.' . random_int(1, 1000)));
+        $this->assertNull($factory->find(null, 'I dont exist.' . random_int(1, 10000)));
     }
 
 }

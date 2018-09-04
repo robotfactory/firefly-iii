@@ -31,11 +31,14 @@ use Illuminate\Support\Collection;
 
 /**
  * Class CountAttachmentsFilter
+ * @codeCoverageIgnore
  */
 class CountAttachmentsFilter implements FilterInterface
 {
 
     /**
+     * Adds the number of transactions to each given transaction.
+     *
      * @param Collection $set
      *
      * @return Collection

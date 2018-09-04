@@ -43,11 +43,11 @@ final class HasAnyBudget extends AbstractTrigger implements TriggerInterface
      * (even if it will still include 99.9% of the users transactions), this method MUST return
      * false.
      *
-     * @param null $value
+     * @param mixed $value
      *
      * @return bool
      */
-    public static function willMatchEverything($value = null)
+    public static function willMatchEverything($value = null): bool
     {
         return false;
     }
@@ -81,7 +81,7 @@ final class HasAnyBudget extends AbstractTrigger implements TriggerInterface
             }
         }
 
-        Log::debug(sprintf('RuleTrigger HasAnyBudget for journal #%d: count is %d, return false.', $journal->id, $count));
+        Log::debug(sprintf('RuleTrigger HasAnyBudget for journal #%d: final is false.', $journal->id));
 
         return false;
     }

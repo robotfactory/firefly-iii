@@ -83,16 +83,16 @@ use FireflyIII\TransactionRules\Triggers\UserAction;
  */
 
 return [
-    'configuration'  => [
+    'configuration'            => [
         'single_user_mode' => true,
         'is_demo_site'     => false,
     ],
-    'encryption'     => null === env('USE_ENCRYPTION') || env('USE_ENCRYPTION') === true,
-    'version'        => '4.7.4',
-    'api_version'    => '0.3',
-    'db_version'     => 4,
-    'maxUploadSize'  => 15242880,
-    'allowedMimes'   => [
+    'encryption'               => null === env('USE_ENCRYPTION') || env('USE_ENCRYPTION') === true,
+    'version'                  => '4.7.6.2',
+    'api_version'              => '0.7',
+    'db_version'               => 4,
+    'maxUploadSize'            => 15242880,
+    'allowedMimes'             => [
         /* plain files */
         'text/plain',
 
@@ -154,8 +154,8 @@ return [
         'application/vnd.oasis.opendocument.database',
         'application/vnd.oasis.opendocument.image',
     ],
-    'list_length'    => 10,
-    'export_formats' => [
+    'list_length'              => 10,
+    'export_formats'           => [
         'csv' => CsvExporter::class,
     ],
     'default_export_format'    => 'csv',
@@ -176,10 +176,12 @@ return [
     ],
     'subTitlesByIdentifier'    =>
         [
-            'asset'   => 'Asset accounts',
-            'expense' => 'Expense accounts',
-            'revenue' => 'Revenue accounts',
-            'cash'    => 'Cash accounts',
+            'asset'       => 'Asset accounts',
+            'expense'     => 'Expense accounts',
+            'revenue'     => 'Revenue accounts',
+            'cash'        => 'Cash accounts',
+            'liabilities' => 'Liabilities',
+            'liability'   => 'Liabilities',
         ],
     'subIconsByIdentifier'     =>
         [
@@ -194,23 +196,27 @@ return [
             'Revenue account'     => 'fa-download',
             'import'              => 'fa-download',
             'Import account'      => 'fa-download',
+            'liabilities'         => 'fa-ticket',
         ],
     'accountTypesByIdentifier' =>
         [
-            'asset'   => ['Default account', 'Asset account'],
-            'expense' => ['Expense account', 'Beneficiary account'],
-            'revenue' => ['Revenue account'],
-            'import'  => ['Import account'],
+            'asset'       => ['Default account', 'Asset account'],
+            'expense'     => ['Expense account', 'Beneficiary account'],
+            'revenue'     => ['Revenue account'],
+            'import'      => ['Import account'],
+            'liabilities' => ['Loan', 'Debt', 'Credit card', 'Mortgage'],
         ],
     'accountTypeByIdentifier'  =>
         [
-            'asset'     => 'Asset account',
-            'expense'   => 'Expense account',
-            'revenue'   => 'Revenue account',
-            'opening'   => 'Initial balance account',
-            'initial'   => 'Initial balance account',
-            'import'    => 'Import account',
-            'reconcile' => 'Reconciliation account',
+            'asset'       => ['Asset account'],
+            'expense'     => ['Expense account'],
+            'revenue'     => ['Revenue account'],
+            'opening'     => ['Initial balance account'],
+            'initial'     => ['Initial balance account'],
+            'import'      => ['Import account'],
+            'reconcile'   => ['Reconciliation account'],
+            'liabilities' => ['Loan', 'Debt', 'Mortgage', 'Credit card'],
+            'liability'   => ['Loan', 'Debt', 'Mortgage', 'Credit card'],
         ],
     'shortNamesByFullName'     =>
         [
@@ -221,6 +227,10 @@ return [
             'Beneficiary account' => 'expense',
             'Revenue account'     => 'revenue',
             'Cash account'        => 'cash',
+            'Credit card'         => 'liabilities',
+            'Loan'                => 'liabilities',
+            'Debt'                => 'liabilities',
+            'Mortgage'            => 'liabilities',
         ],
     'languages'                => [
         // completed languages
@@ -228,16 +238,13 @@ return [
         'es_ES' => ['name_locale' => 'Español', 'name_english' => 'Spanish'],
         'de_DE' => ['name_locale' => 'Deutsch', 'name_english' => 'German'],
         'fr_FR' => ['name_locale' => 'Français', 'name_english' => 'French'],
-        'id_ID' => ['name_locale' => 'Bahasa Indonesia', 'name_english' => 'Indonesian'],
+        //'id_ID' => ['name_locale' => 'Bahasa Indonesia', 'name_english' => 'Indonesian'],
         'it_IT' => ['name_locale' => 'Italiano', 'name_english' => 'Italian'],
         'nl_NL' => ['name_locale' => 'Nederlands', 'name_english' => 'Dutch'],
         'pl_PL' => ['name_locale' => 'Polski', 'name_english' => 'Polish '],
-        'pt_BR' => ['name_locale' => 'Português do Brasil', 'name_english' => 'Portuguese (Brazil)'],
+        //'pt_BR' => ['name_locale' => 'Português do Brasil', 'name_english' => 'Portuguese (Brazil)'],
         'ru_RU' => ['name_locale' => 'Русский', 'name_english' => 'Russian'],
-        'tr_TR' => ['name_locale' => 'Türkçe', 'name_english' => 'Turkish'],
-
-        // incomplete languages:
-        // 'ca_ES' => ['name_locale' => 'Català', 'name_english' => 'Catalan'],
+        //'tr_TR' => ['name_locale' => 'Türkçe', 'name_english' => 'Turkish'],
     ],
     'transactionTypesByWhat'   => [
         'expenses'   => ['Withdrawal'],
@@ -260,6 +267,7 @@ return [
         // models
         'account'           => \FireflyIII\Models\Account::class,
         'attachment'        => \FireflyIII\Models\Attachment::class,
+        'availableBudget'   => \FireflyIII\Models\AvailableBudget::class,
         'bill'              => \FireflyIII\Models\Bill::class,
         'budget'            => \FireflyIII\Models\Budget::class,
         'budgetLimit'       => \FireflyIII\Models\BudgetLimit::class,
@@ -269,8 +277,10 @@ return [
         'journalLink'       => \FireflyIII\Models\TransactionJournalLink::class,
         'currency'          => \FireflyIII\Models\TransactionCurrency::class,
         'piggyBank'         => \FireflyIII\Models\PiggyBank::class,
+        'preference'        => \FireflyIII\Models\Preference::class,
         'tj'                => \FireflyIII\Models\TransactionJournal::class,
         'tag'               => \FireflyIII\Models\Tag::class,
+        'recurrence'        => \FireflyIII\Models\Recurrence::class,
         'rule'              => \FireflyIII\Models\Rule::class,
         'ruleGroup'         => \FireflyIII\Models\RuleGroup::class,
         'exportJob'         => \FireflyIII\Models\ExportJob::class,
@@ -279,7 +289,7 @@ return [
         'user'              => \FireflyIII\User::class,
 
         // strings
-        'import_provider'        => \FireflyIII\Support\Binder\ImportProvider::class,
+        'import_provider'   => \FireflyIII\Support\Binder\ImportProvider::class,
 
         // dates
         'start_date'        => \FireflyIII\Support\Binder\Date::class,
@@ -299,6 +309,7 @@ return [
         'fromCurrencyCode'  => \FireflyIII\Support\Binder\CurrencyCode::class,
         'toCurrencyCode'    => \FireflyIII\Support\Binder\CurrencyCode::class,
         'unfinishedJournal' => \FireflyIII\Support\Binder\UnfinishedJournal::class,
+        'cliToken'          => \FireflyIII\Support\Binder\CLIToken::class,
 
 
     ],

@@ -31,10 +31,12 @@ use Log;
  *
  * This filter is similar to the internal transfer filter but only removes transactions when the opposing account is
  * amongst $parameters (list of account ID's).
+ *
+ * @codeCoverageIgnore
  */
 class OpposingAccountFilter implements FilterInterface
 {
-    /** @var array */
+    /** @var array The asset accounts. */
     private $accounts;
 
     /**
@@ -48,6 +50,8 @@ class OpposingAccountFilter implements FilterInterface
     }
 
     /**
+     * Only return specific transactions. See class description.
+     *
      * @param Collection $set
      *
      * @return Collection
@@ -58,7 +62,7 @@ class OpposingAccountFilter implements FilterInterface
             function (Transaction $transaction) {
                 $opposing = $transaction->opposing_account_id;
                 // remove internal transfer
-                if (\in_array($opposing, $this->accounts)) {
+                if (\in_array($opposing, $this->accounts, true)) {
                     Log::debug(sprintf('Filtered #%d because its opposite is in accounts.', $transaction->id), $this->accounts);
 
                     return null;

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Import.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -20,6 +19,9 @@
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @noinspection MultipleReturnStatementsInspection */
+/** @noinspection PhpDynamicAsStaticMethodCallInspection */
+
 declare(strict_types=1);
 
 namespace FireflyIII\Console\Commands;
@@ -27,12 +29,14 @@ namespace FireflyIII\Console\Commands;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Import\Routine\RoutineInterface;
 use FireflyIII\Models\ImportJob;
+use FireflyIII\Models\Tag;
 use Illuminate\Console\Command;
-use Illuminate\Support\MessageBag;
 use Log;
 
 /**
  * Class Import.
+ *
+ * @codeCoverageIgnore
  */
 class Import extends Command
 {
@@ -52,23 +56,26 @@ class Import extends Command
 
     /**
      * Run the import routine.
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      *
      * @throws FireflyException
      */
-    public function handle()
+    public function handle(): int
     {
         Log::debug('Start start-import command');
-        $jobKey = $this->argument('key');
-        $job    = ImportJob::where('key', $jobKey)->first();
+        $jobKey = (string)$this->argument('key');
+        /** @var ImportJob $job */
+        $job = ImportJob::where('key', $jobKey)->first();
         if (null === $job) {
             $this->errorLine(sprintf('No job found with key "%s"', $jobKey));
 
-            return;
+            return 1;
         }
         if (!$this->isValid($job)) {
             $this->errorLine('Job is not valid for some reason. Exit.');
 
-            return;
+            return 1;
         }
 
         $this->infoLine(sprintf('Going to import job with key "%s" of type "%s"', $job->key, $job->file_type));
@@ -83,21 +90,32 @@ class Import extends Command
 
         /** @var RoutineInterface $routine */
         $routine = app($className);
-        $routine->setJob($job);
+        $routine->setImportJob($job);
         $routine->run();
 
-        /** @var MessageBag $error */
-        foreach ($routine->getErrors() as $index => $error) {
+        /**
+         * @var int    $index
+         * @var string $error
+         */
+        foreach ($job->errors as $index => $error) {
             $this->errorLine(sprintf('Error importing line #%d: %s', $index, $error));
         }
 
-        $this->infoLine(
-            sprintf('The import has finished. %d transactions have been imported out of %d records.', $routine->getJournals()->count(), $routine->getLines())
-        );
+        /** @var Tag $tag */
+        $tag   = $job->tag()->first();
+        $count = 0;
+        if (null === $tag) {
+            $count = $tag->transactionJournals()->count();
+        }
 
+        $this->infoLine(sprintf('The import has finished. %d transactions have been imported.', $count));
+
+        return 0;
     }
 
     /**
+     * Displays an error.
+     *
      * @param string     $message
      * @param array|null $data
      */
@@ -109,6 +127,8 @@ class Import extends Command
     }
 
     /**
+     * Displays an informational message.
+     *
      * @param string $message
      * @param array  $data
      */

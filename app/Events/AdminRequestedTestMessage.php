@@ -30,18 +30,15 @@ use Log;
 
 /**
  * Class AdminRequestedTestMessage.
+ * @codeCoverageIgnore
  */
 class AdminRequestedTestMessage extends Event
 {
     use SerializesModels;
 
-    /**
-     * @var string
-     */
+    /** @var string The users IP address */
     public $ipAddress;
-    /**
-     * @var User
-     */
+    /** @var User The user */
     public $user;
 
     /**

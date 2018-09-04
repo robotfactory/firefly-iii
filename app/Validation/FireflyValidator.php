@@ -38,7 +38,9 @@ use FireflyIII\TransactionRules\Triggers\TriggerInterface;
 use FireflyIII\User;
 use Google2FA;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Validator;
+use Log;
 
 /**
  * Class FireflyValidator.
@@ -55,7 +57,7 @@ class FireflyValidator extends Validator
      */
     public function validate2faCode($attribute, $value): bool
     {
-        if (!\is_string($value) || null === $value || 6 != \strlen($value)) {
+        if (!\is_string($value) || null === $value || 6 !== \strlen($value)) {
             return false;
         }
 
@@ -195,6 +197,22 @@ class FireflyValidator extends Validator
      *
      * @return bool
      */
+    public function validateLess($attribute, $value, $parameters): bool
+    {
+        /** @var mixed $compare */
+        $compare = $parameters[0] ?? '0';
+
+        return bccomp((string)$value, (string)$compare) < 0;
+    }
+
+    /**
+     * @param $attribute
+     * @param $value
+     * @param $parameters
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     *
+     * @return bool
+     */
     public function validateMore($attribute, $value, $parameters): bool
     {
         /** @var mixed $compare */
@@ -225,97 +243,108 @@ class FireflyValidator extends Validator
     }
 
     /**
-     * @param $attribute
+     * @param string $attribute
+     *
+     * @param string $value
      *
      * @return bool
      */
-    public function validateRuleActionValue($attribute): bool
+    public function validateRuleActionValue(string $attribute, string $value): bool
     {
-        // get the index from a string like "rule-action-value.2".
+        // first, get the index from this string:
         $parts = explode('.', $attribute);
-        $index = $parts[\count($parts) - 1];
-        // loop all rule-actions.
-        // check if rule-action-value matches the thing.
+        $index = (int)($parts[1] ?? '0');
 
-        if (\is_array($this->data['rule-action'])) {
-            $name  = $this->data['rule-action'][$index] ?? 'invalid';
-            $value = $this->data['rule-action-value'][$index] ?? false;
-            switch ($name) {
-                default:
+        // get the name of the trigger from the data array:
+        $actionType = $this->data['rule_actions'][$index]['name'] ?? 'invalid';
 
-                    return true;
-                case 'set_budget':
-                    /** @var BudgetRepositoryInterface $repository */
-                    $repository = app(BudgetRepositoryInterface::class);
-                    $budgets    = $repository->getBudgets();
-                    // count budgets, should have at least one
-                    $count = $budgets->filter(
-                        function (Budget $budget) use ($value) {
-                            return $budget->name === $value;
-                        }
-                    )->count();
-
-                    return 1 === $count;
-                case 'link_to_bill':
-                    /** @var BillRepositoryInterface $repository */
-                    $repository = app(BillRepositoryInterface::class);
-                    $bill       = $repository->findByName((string)$value);
-
-                    return null !== $bill;
-                case 'invalid':
-                    return false;
-            }
+        // if it's "invalid" return false.
+        if ('invalid' === $actionType) {
+            return false;
         }
 
-        return false;
+        // if it's set_budget, verify the budget name:
+        if ('set_budget' === $actionType) {
+            /** @var BudgetRepositoryInterface $repository */
+            $repository = app(BudgetRepositoryInterface::class);
+            $budgets    = $repository->getBudgets();
+            // count budgets, should have at least one
+            $count = $budgets->filter(
+                function (Budget $budget) use ($value) {
+                    return $budget->name === $value;
+                }
+            )->count();
+
+            return 1 === $count;
+        }
+
+        // if it's link to bill, verify the name of the bill.
+        if ('link_to_bill' === $actionType) {
+            /** @var BillRepositoryInterface $repository */
+            $repository = app(BillRepositoryInterface::class);
+            $bill       = $repository->findByName($value);
+
+            return null !== $bill;
+        }
+
+        // return true for the rest.
+        return true;
     }
 
     /**
-     * @param $attribute
+     * $attribute has the format rule_triggers.%d.value.
+     *
+     * @param string $attribute
+     * @param string $value
      *
      * @return bool
      */
-    public function validateRuleTriggerValue($attribute): bool
+    public function validateRuleTriggerValue(string $attribute, string $value): bool
     {
-        // get the index from a string like "rule-trigger-value.2".
+        //
+
+        // first, get the index from this string:
         $parts = explode('.', $attribute);
-        $index = $parts[\count($parts) - 1];
+        $index = (int)($parts[1] ?? '0');
 
-        // loop all rule-triggers.
-        // check if rule-value matches the thing.
-        if (\is_array($this->data['rule-trigger'])) {
-            $name  = $this->getRuleTriggerName($index);
-            $value = $this->getRuleTriggerValue($index);
+        // get the name of the trigger from the data array:
+        $triggerType = $this->data['rule_triggers'][$index]['name'] ?? 'invalid';
 
-            // break on some easy checks:
-            switch ($name) {
-                case 'amount_less':
-                    $result = is_numeric($value);
-                    if (false === $result) {
-                        return false;
-                    }
-                    break;
-                case 'transaction_type':
-                    $count = TransactionType::where('type', $value)->count();
-                    if (!(1 === $count)) {
-                        return false;
-                    }
-                    break;
-                case 'invalid':
-                    return false;
-            }
-            // still a special case where the trigger is
-            // triggered in such a way that it would trigger ANYTHING. We can check for such things
-            // with function willmatcheverything
-            // we know which class it is so dont bother checking that.
-            $classes = Config::get('firefly.rule-triggers');
-            /** @var TriggerInterface $class */
-            $class = $classes[$name];
-
-            return !$class::willMatchEverything($value);
+        // invalid always returns false:
+        if ('invalid' === $triggerType) {
+            return false;
         }
 
-        return false;
+        // these trigger types need a numerical check:
+        $numerical = ['amount_less', 'amount_more', 'amount_exactly'];
+        if (\in_array($triggerType, $numerical, true)) {
+            return is_numeric($value);
+        }
+
+        // these trigger types need a simple strlen check:
+        $length = ['from_account_starts', 'from_account_ends', 'from_account_is', 'from_account_contains', 'to_account_starts', 'to_account_ends',
+                   'to_account_is', 'to_account_contains', 'description_starts', 'description_ends', 'description_contains', 'description_is', 'category_is',
+                   'budget_is', 'tag_is', 'currency_is', 'notes_contain', 'notes_start', 'notes_end', 'notes_are',];
+        if (\in_array($triggerType, $length, true)) {
+            return '' !== $value;
+        }
+
+        // check transaction type.
+        if ('transaction_type' === $triggerType) {
+            $count = TransactionType::where('type', $value)->count();
+
+            return 1 !== $count;
+        }
+
+        // and finally a "will match everything check":
+        $classes = app('config')->get('firefly.rule-triggers');
+        /** @var TriggerInterface $class */
+        $class = $classes[$triggerType] ?? false;
+        if (false === $class) {
+            return false;
+        }
+
+        return !$class::willMatchEverything($value);
     }
 
     /**
@@ -385,7 +414,7 @@ class FireflyValidator extends Validator
     public function validateUniqueAccountNumberForUser($attribute, $value, $parameters): bool
     {
         $accountId = (int)($this->data['id'] ?? 0.0);
-        if ($accountId === 0) {
+        if (0 === $accountId) {
             $accountId = (int)($parameters[0] ?? 0.0);
         }
 
@@ -394,9 +423,9 @@ class FireflyValidator extends Validator
                             ->where('accounts.user_id', auth()->user()->id)
                             ->where('account_meta.name', 'accountNumber');
 
-        if ((int)$accountId > 0) {
+        if ($accountId > 0) {
             // exclude current account from check.
-            $query->where('account_meta.account_id', '!=', (int)$accountId);
+            $query->where('account_meta.account_id', '!=', $accountId);
         }
         $set = $query->get(['account_meta.*']);
 
@@ -427,9 +456,7 @@ class FireflyValidator extends Validator
     public function validateUniqueObjectForUser($attribute, $value, $parameters): bool
     {
         $value = $this->tryDecrypt($value);
-        // exclude?
-        $table   = $parameters[0];
-        $field   = $parameters[1];
+        [$table, $field] = $parameters;
         $exclude = (int)($parameters[2] ?? 0.0);
 
         /*
@@ -489,26 +516,6 @@ class FireflyValidator extends Validator
     }
 
     /**
-     * @param int $index
-     *
-     * @return string
-     */
-    private function getRuleTriggerName($index): string
-    {
-        return $this->data['rule-trigger'][$index] ?? 'invalid';
-    }
-
-    /**
-     * @param int $index
-     *
-     * @return string
-     */
-    private function getRuleTriggerValue($index): string
-    {
-        return $this->data['rule-trigger-value'][$index] ?? '';
-    }
-
-    /**
      * @param $value
      *
      * @return mixed
@@ -518,7 +525,7 @@ class FireflyValidator extends Validator
         try {
             $value = Crypt::decrypt($value);
         } catch (DecryptException $e) {
-            // do not care.
+            //Log::debug(sprintf('Could not decrypt. %s', $e->getMessage()));
         }
 
         return $value;
@@ -562,6 +569,7 @@ class FireflyValidator extends Validator
         $ignore = $existingAccount->id;
         $value  = $this->tryDecrypt($value);
 
+        /** @var Collection $set */
         $set = auth()->user()->accounts()->where('account_type_id', $type->id)->where('id', '!=', $ignore)->get();
         /** @var Account $entry */
         foreach ($set as $entry) {
@@ -585,6 +593,7 @@ class FireflyValidator extends Validator
         $ignore = (int)($parameters[0] ?? 0.0);
         $value  = $this->tryDecrypt($value);
 
+        /** @var Collection $set */
         $set = auth()->user()->accounts()->where('account_type_id', $type->id)->where('id', '!=', $ignore)->get();
         /** @var Account $entry */
         foreach ($set as $entry) {
@@ -605,11 +614,14 @@ class FireflyValidator extends Validator
      */
     private function validateByAccountTypeString(string $value, array $parameters, string $type): bool
     {
-        $search      = Config::get('firefly.accountTypeByIdentifier.' . $type);
-        $accountType = AccountType::whereType($search)->first();
-        $ignore      = (int)($parameters[0] ?? 0.0);
-
-        $set = auth()->user()->accounts()->where('account_type_id', $accountType->id)->where('id', '!=', $ignore)->get();
+        /** @var array $search */
+        $search = Config::get('firefly.accountTypeByIdentifier.' . $type);
+        /** @var Collection $accountTypes */
+        $accountTypes   = AccountType::whereIn('type', $search)->get();
+        $ignore         = (int)($parameters[0] ?? 0.0);
+        $accountTypeIds = $accountTypes->pluck('id')->toArray();
+        /** @var Collection $set */
+        $set = auth()->user()->accounts()->whereIn('account_type_id', $accountTypeIds)->where('id', '!=', $ignore)->get();
         /** @var Account $entry */
         foreach ($set as $entry) {
             if ($entry->name === $value) {

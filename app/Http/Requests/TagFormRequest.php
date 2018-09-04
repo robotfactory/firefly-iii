@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Requests;
 
-use FireflyIII\Repositories\Tag\TagRepositoryInterface;
+use FireflyIII\Models\Tag;
 
 /**
  * Class TagFormRequest.
@@ -30,15 +30,19 @@ use FireflyIII\Repositories\Tag\TagRepositoryInterface;
 class TagFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Get all data for controller.
+     *
      * @return array
      */
     public function collectTagData(): array
@@ -66,17 +70,20 @@ class TagFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
-        /** @var TagRepositoryInterface $repository */
-        $repository = app(TagRepositoryInterface::class);
-        $idRule     = '';
-        $tagRule    = 'required|min:1|uniqueObjectForUser:tags,tag';
-        if (null !== $repository->find((int)$this->get('id'))->id) {
+        $idRule = '';
+
+        /** @var Tag $tag */
+        $tag     = $this->route()->parameter('tag');
+        $tagRule = 'required|min:1|uniqueObjectForUser:tags,tag';
+        if (null !== $tag) {
             $idRule  = 'belongsToUser:tags';
-            $tagRule = 'required|min:1|uniqueObjectForUser:tags,tag,' . $this->get('id');
+            $tagRule = 'required|min:1|uniqueObjectForUser:tags,tag,' . $tag->id;
         }
 
         return [

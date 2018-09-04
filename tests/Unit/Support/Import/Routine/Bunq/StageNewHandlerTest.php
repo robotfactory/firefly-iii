@@ -44,6 +44,7 @@ use Mockery;
 use Preferences;
 use Tests\Object\FakeApiContext;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class StageNewHandlerTest
@@ -51,13 +52,22 @@ use Tests\TestCase;
 class StageNewHandlerTest extends TestCase
 {
     /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+    /**
      * @covers \FireflyIII\Support\Import\Routine\Bunq\StageNewHandler
      */
     public function testRun(): void
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'snh_bunq_' . random_int(1, 1000);
+        $job->key           = 'snh_bunq_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'bunq';
@@ -97,6 +107,7 @@ class StageNewHandlerTest extends TestCase
                     'balance'       => null,
                     'status'        => null,
                     'type'          => 'MonetaryAccountBank',
+                    'iban'          => 'SM72C9584723533916792029340',
                     'aliases'       => [
                         [
                             'name'  => $alias->getName(),
@@ -124,8 +135,8 @@ class StageNewHandlerTest extends TestCase
         $repository->shouldReceive('setUser')->once();
         $mAccount->shouldReceive('listing')->andReturn($list)->once();
         $repository->shouldReceive('getConfiguration')->once()->andReturn([]);
-        $repository->shouldReceive('setConfiguration')->once()->withArgs([Mockery::any(), $expectedConfig]);
 
+        $repository->shouldReceive('setConfiguration')->once()->withArgs([Mockery::any(), $expectedConfig]);
 
         $handler = new StageNewHandler;
         $handler->setImportJob($job);
@@ -143,7 +154,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'snha_bunq_' . random_int(1, 1000);
+        $job->key           = 'snha_bunq_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'bunq';
@@ -234,7 +245,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'snh_bbunq_' . random_int(1, 1000);
+        $job->key           = 'snh_bbunq_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'bunq';

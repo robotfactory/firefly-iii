@@ -27,23 +27,27 @@ use FireflyIII\Helpers\Report\BalanceReportHelperInterface;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Support\CacheProperties;
 use Illuminate\Support\Collection;
+use Log;
+use Throwable;
 
 /**
  * Class BalanceController.
  */
 class BalanceController extends Controller
 {
+
     /**
-     * @param BalanceReportHelperInterface $helper
-     * @param Collection                   $accounts
-     * @param Carbon                       $start
-     * @param Carbon                       $end
+     * Show overview of budget balances.
+     *
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
      *
      * @return mixed|string
-     * @throws \Throwable
      */
-    public function general(BalanceReportHelperInterface $helper, Collection $accounts, Carbon $start, Carbon $end)
+    public function general(Collection $accounts, Carbon $start, Carbon $end)
     {
+
         // chart properties for cache:
         $cache = new CacheProperties;
         $cache->addProperty($start);
@@ -53,10 +57,16 @@ class BalanceController extends Controller
         if ($cache->has()) {
             return $cache->get(); // @codeCoverageIgnore
         }
-
+        $helper  = app(BalanceReportHelperInterface::class);
         $balance = $helper->getBalanceReport($accounts, $start, $end);
-
-        $result = view('reports.partials.balance', compact('balance'))->render();
+        try {
+            $result = view('reports.partials.balance', compact('balance'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::debug(sprintf('Could not render reports.partials.balance: %s', $e->getMessage()));
+            $result = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;

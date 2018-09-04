@@ -27,11 +27,22 @@ namespace Tests\Unit\Support\Import\JobConfiguration\Bunq;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Support\Import\JobConfiguration\Bunq\NewBunqJobHandler;
-use Mockery;
 use Tests\TestCase;
+use Log;
 
+/**
+ * Class NewBunqJobHandlerTest
+ */
 class NewBunqJobHandlerTest extends TestCase
 {
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
     /**
      * @covers \FireflyIII\Support\Import\JobConfiguration\Bunq\NewBunqJobHandler
      */
@@ -39,7 +50,7 @@ class NewBunqJobHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'cXha' . random_int(1, 1000);
+        $job->key           = 'cXha' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'bunq';
@@ -48,16 +59,12 @@ class NewBunqJobHandlerTest extends TestCase
         $job->save();
 
         // expected config:
-        $expected = [
-            'apply-rules' => true,
-        ];
+        //$expected = [];
 
         // mock stuff
         $repository = $this->mock(ImportJobRepositoryInterface::class);
         // mock calls
         $repository->shouldReceive('setUser')->once();
-        $repository->shouldReceive('getConfiguration')->andReturn([])->once();
-        $repository->shouldReceive('setConfiguration')->withArgs([Mockery::any(), $expected])->once();
 
         $handler = new NewBunqJobHandler();
         $handler->setImportJob($job);

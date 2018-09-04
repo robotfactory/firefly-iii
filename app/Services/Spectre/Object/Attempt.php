@@ -26,8 +26,12 @@ namespace FireflyIII\Services\Spectre\Object;
 use Carbon\Carbon;
 
 /**
- * @codeCoverageIgnore
+ *
  * Class Attempt
+ *
+ * @codeCoverageIgnore
+ * @SuppressWarnings(PHPMD.ShortVariable)
+ * @SuppressWarnings(PHPMD.TooManyFields)
  */
 class Attempt extends SpectreObject
 {
@@ -42,17 +46,17 @@ class Attempt extends SpectreObject
     /** @var Carbon */
     private $consentGivenAt;
     /** @var array */
-    private $consentTypes = [];
+    private $consentTypes;
     /** @var Carbon */
     private $createdAt;
     /** @var array */
-    private $customFields = [];
+    private $customFields;
     /** @var bool */
     private $dailyRefresh;
     /** @var string */
     private $deviceType;
     /** @var array */
-    private $excludeAccounts = [];
+    private $excludeAccounts;
     /** @var Carbon */
     private $failAt;
     /** @var string */
@@ -60,7 +64,7 @@ class Attempt extends SpectreObject
     /** @var string */
     private $failMessage;
     /** @var array */
-    private $fetchScopes = [];
+    private $fetchScopes;
     /** @var bool */
     private $finished;
     /** @var bool */
@@ -80,16 +84,16 @@ class Attempt extends SpectreObject
     /** @var bool */
     private $showConsentInformation;
     /** @var array */
-    private $stages = [];
+    private $stages;
     /** @var bool */
     private $storeCredentials;
     /** @var Carbon */
     private $successAt;
     /** @var Carbon */
     private $toDate;
-        /** @var Carbon */
+    /** @var Carbon */
     private $updatedAt; // undocumented
-/** @var string */
+    /** @var string */
     private $userAgent;
 
     /**

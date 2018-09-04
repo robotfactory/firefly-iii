@@ -27,16 +27,18 @@ use Illuminate\Support\Collection;
 
 /**
  * Class Category.
+ *
+ * @codeCoverageIgnore
  */
 class Category
 {
-    /** @var Collection */
+    /** @var Collection The categories */
     protected $categories;
-    /** @var string */
+    /** @var string Total amount */
     protected $total = '0';
 
     /**
-     *
+     * Category constructor.
      */
     public function __construct()
     {
@@ -44,26 +46,32 @@ class Category
     }
 
     /**
+     * Add a category.
+     *
      * @param CategoryModel $category
      */
-    public function addCategory(CategoryModel $category)
+    public function addCategory(CategoryModel $category): void
     {
         // spent is minus zero for an expense report:
         if ($category->spent < 0) {
             $this->categories->push($category);
-            $this->addTotal($category->spent);
+            $this->addTotal((string)$category->spent);
         }
     }
 
     /**
+     * Add to the total amount.
+     *
      * @param string $add
      */
-    public function addTotal(string $add)
+    public function addTotal(string $add): void
     {
         $this->total = bcadd($this->total, $add);
     }
 
     /**
+     * Get all categories.
+     *
      * @return Collection
      */
     public function getCategories(): Collection
@@ -78,6 +86,8 @@ class Category
     }
 
     /**
+     * Get the total.
+     *
      * @return string
      */
     public function getTotal(): string

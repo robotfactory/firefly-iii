@@ -24,48 +24,52 @@ namespace Tests\Feature\Controllers\Admin;
 
 use FireflyIII\Models\LinkType;
 use FireflyIII\Repositories\LinkType\LinkTypeRepositoryInterface;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Support\Collection;
 use Log;
+use Mockery;
 use Tests\TestCase;
 
 /**
  * Class LinkControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class LinkControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::__construct
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::create
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testCreate(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
 
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
         $this->be($this->user());
         $response = $this->get(route('admin.links.create'));
         $response->assertStatus(200);
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::delete
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testDeleteEditable(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
         // create editable link type just in case:
         LinkType::create(['editable' => 1, 'inward' => 'hello', 'outward' => 'bye', 'name' => 'Test type']);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
 
         $linkType = LinkType::where('editable', 1)->first();
         $repository->shouldReceive('get')->once()->andReturn(new Collection([$linkType]));
@@ -76,12 +80,16 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::delete
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testDeleteNonEditable(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
         $linkType   = LinkType::where('editable', 0)->first();
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
         $this->be($this->user());
         $response = $this->get(route('admin.links.delete', [$linkType->id]));
         $response->assertStatus(302);
@@ -89,17 +97,21 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::destroy
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testDestroy(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
 
         // create editable link type just in case:
         LinkType::create(['editable' => 1, 'inward' => 'hellox', 'outward' => 'byex', 'name' => 'Test typeX']);
 
         $linkType = LinkType::where('editable', 1)->first();
-        $repository->shouldReceive('find')->andReturn($linkType);
+        $repository->shouldReceive('findNull')->andReturn($linkType);
         $repository->shouldReceive('destroy');
         $this->be($this->user());
         $this->session(['link_types.delete.uri' => 'http://localhost']);
@@ -109,10 +121,15 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::edit
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testEditEditable(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
         // create editable link type just in case:
         LinkType::create(['editable' => 1, 'inward' => 'hello Y', 'outward' => 'bye Y', 'name' => 'Test type Y']);
 
@@ -123,10 +140,15 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::edit
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testEditNonEditable(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
         $linkType = LinkType::where('editable', 0)->first();
         $this->be($this->user());
         $response = $this->get(route('admin.links.edit', [$linkType->id]));
@@ -135,10 +157,15 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::index
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testIndex(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
+
         $linkTypes  = LinkType::inRandomOrder()->take(3)->get();
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
         $repository->shouldReceive('get')->andReturn($linkTypes);
@@ -149,10 +176,15 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Admin\LinkController::show
+     * @covers \FireflyIII\Http\Controllers\Admin\LinkController
      */
     public function testShow(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
+
         $linkType = LinkType::first();
         $this->be($this->user());
         $response = $this->get(route('admin.links.show', [$linkType->id]));
@@ -160,19 +192,24 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController::store
+     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController
      * @covers       \FireflyIII\Http\Requests\LinkTypeFormRequest
      */
     public function testStore(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
-        $data       = [
-            'name'    => 'test ' . random_int(1, 1000),
-            'inward'  => 'test inward' . random_int(1, 1000),
-            'outward' => 'test outward' . random_int(1, 1000),
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
+        $data = [
+            'name'    => 'test ' . random_int(1, 10000),
+            'inward'  => 'test inward' . random_int(1, 10000),
+            'outward' => 'test outward' . random_int(1, 10000),
         ];
         $repository->shouldReceive('store')->once()->andReturn(LinkType::first());
-        $repository->shouldReceive('find')->andReturn(LinkType::first());
+        $repository->shouldReceive('findNull')->andReturn(LinkType::first());
 
         $this->session(['link_types.create.uri' => 'http://localhost']);
         $this->be($this->user());
@@ -182,16 +219,21 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController::store
+     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController
      * @covers       \FireflyIII\Http\Requests\LinkTypeFormRequest
      */
     public function testStoreRedirect(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
-        $data       = [
-            'name'           => 'test ' . random_int(1, 1000),
-            'inward'         => 'test inward' . random_int(1, 1000),
-            'outward'        => 'test outward' . random_int(1, 1000),
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
+        $data = [
+            'name'           => 'test ' . random_int(1, 10000),
+            'inward'         => 'test inward' . random_int(1, 10000),
+            'outward'        => 'test outward' . random_int(1, 10000),
             'create_another' => '1',
         ];
         $repository->shouldReceive('store')->once()->andReturn(new LinkType);
@@ -203,21 +245,25 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController::update
+     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController
      * @covers       \FireflyIII\Http\Requests\LinkTypeFormRequest
      */
     public function testUpdate(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
 
         // create editable link type just in case:
         $linkType = LinkType::create(['editable' => 1, 'inward' => 'helloxz', 'outward' => 'bzyex', 'name' => 'Test tyzpeX']);
         $repository->shouldReceive('update')->once()->andReturn(new $linkType);
 
         $data = [
-            'name'    => 'test ' . random_int(1, 1000),
-            'inward'  => 'test inward' . random_int(1, 1000),
-            'outward' => 'test outward' . random_int(1, 1000),
+            'name'    => 'test ' . random_int(1, 10000),
+            'inward'  => 'test inward' . random_int(1, 10000),
+            'outward' => 'test outward' . random_int(1, 10000),
         ];
         $this->session(['link_types.edit.uri' => 'http://localhost']);
         $this->be($this->user());
@@ -227,18 +273,23 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController::update
+     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController
      * @covers       \FireflyIII\Http\Requests\LinkTypeFormRequest
      */
     public function testUpdateNonEditable(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
-        $linkType   = LinkType::where('editable', 0)->first();
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
+        $linkType = LinkType::where('editable', 0)->first();
 
         $data = [
-            'name'           => 'test ' . random_int(1, 1000),
-            'inward'         => 'test inward' . random_int(1, 1000),
-            'outward'        => 'test outward' . random_int(1, 1000),
+            'name'           => 'test ' . random_int(1, 10000),
+            'inward'         => 'test inward' . random_int(1, 10000),
+            'outward'        => 'test outward' . random_int(1, 10000),
             'return_to_edit' => '1',
         ];
         $this->session(['link_types.edit.uri' => 'http://localhost']);
@@ -249,19 +300,24 @@ class LinkControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController::update
+     * @covers       \FireflyIII\Http\Controllers\Admin\LinkController
      * @covers       \FireflyIII\Http\Requests\LinkTypeFormRequest
      */
     public function testUpdateRedirect(): void
     {
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
         $repository = $this->mock(LinkTypeRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->atLeast()->once();
+
         // create editable link type just in case:
         $linkType = LinkType::create(['editable' => 1, 'inward' => 'healox', 'outward' => 'byaex', 'name' => 'Test tyapeX']);
 
         $data = [
-            'name'           => 'test ' . random_int(1, 1000),
-            'inward'         => 'test inward' . random_int(1, 1000),
-            'outward'        => 'test outward' . random_int(1, 1000),
+            'name'           => 'test ' . random_int(1, 10000),
+            'inward'         => 'test inward' . random_int(1, 10000),
+            'outward'        => 'test outward' . random_int(1, 10000),
             'return_to_edit' => '1',
         ];
         $repository->shouldReceive('update')->once()->andReturn(new $linkType);

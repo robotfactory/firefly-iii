@@ -22,15 +22,27 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * @property int $journalCount
+ * @property int    $journalCount
+ * @property string $inward
+ * @property string $outward
+ * @property string $name
+ * @property bool   $editable
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property int    $id
  * Class LinkType
+ *
  */
 class LinkType extends Model
 {
+    use SoftDeletes;
     /**
      * The attributes that should be casted to native types.
      *
@@ -44,10 +56,12 @@ class LinkType extends Model
             'editable'   => 'boolean',
         ];
 
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['name', 'inward', 'outward', 'editable'];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param $value
      *
      * @return LinkType
@@ -68,9 +82,9 @@ class LinkType extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function transactionJournalLinks()
+    public function transactionJournalLinks(): HasMany
     {
         return $this->hasMany(TransactionJournalLink::class);
     }

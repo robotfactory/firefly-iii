@@ -25,16 +25,12 @@ namespace FireflyIII\Http\Controllers\Chart;
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
 use FireflyIII\Helpers\Chart\MetaPieChartInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
-use FireflyIII\Helpers\Filter\NegativeAmountFilter;
-use FireflyIII\Helpers\Filter\OpposingAccountFilter;
-use FireflyIII\Helpers\Filter\PositiveAmountFilter;
-use FireflyIII\Helpers\Filter\TransferFilter;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Models\Tag;
-use FireflyIII\Models\Transaction;
-use FireflyIII\Models\TransactionType;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\AugumentData;
+use FireflyIII\Support\Http\Controllers\TransactionCalculation;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
 /**
@@ -42,11 +38,12 @@ use Illuminate\Support\Collection;
  */
 class TagReportController extends Controller
 {
-    /** @var GeneratorInterface */
+    use AugumentData, TransactionCalculation;
+    /** @var GeneratorInterface Chart generation methods. */
     protected $generator;
 
     /**
-     *
+     * TagReportController constructor.
      */
     public function __construct()
     {
@@ -55,16 +52,23 @@ class TagReportController extends Controller
         $this->generator = app(GeneratorInterface::class);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Generate expenses for tags grouped on account.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function accountExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others)
+    public function accountExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -79,16 +83,23 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Generate income for tag grouped by account.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function accountIncome(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others)
+    public function accountIncome(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -103,15 +114,22 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Generate expense for tag grouped on budget.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function budgetExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end)
+    public function budgetExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -126,15 +144,22 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Generate expense for tag grouped on category.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function categoryExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end)
+    public function categoryExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -149,15 +174,24 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Generate main tag overview chart.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function mainChart(Collection $accounts, Collection $tags, Carbon $start, Carbon $end)
+    public function mainChart(Collection $accounts, Collection $tags, Carbon $start, Carbon $end): JsonResponse
     {
         $cache = new CacheProperties;
         $cache->addProperty('chart.category.report.main');
@@ -210,8 +244,8 @@ class TagReportController extends Controller
         while ($currentStart < $end) {
             $currentEnd = clone $currentStart;
             $currentEnd = $currentEnd->$function();
-            $expenses   = $this->groupByTag($this->getExpenses($accounts, $tags, $currentStart, $currentEnd));
-            $income     = $this->groupByTag($this->getIncome($accounts, $tags, $currentStart, $currentEnd));
+            $expenses   = $this->groupByTag($this->getExpensesForTags($accounts, $tags, $currentStart, $currentEnd));
+            $income     = $this->groupByTag($this->getIncomeForTags($accounts, $tags, $currentStart, $currentEnd));
             $label      = $currentStart->formatLocalized($format);
 
             /** @var Tag $tag */
@@ -235,6 +269,7 @@ class TagReportController extends Controller
                 $chartData[$labelSumIn]['entries'][$label]  = $sumOfIncome[$tag->id];
                 $chartData[$labelSumOut]['entries'][$label] = $sumOfExpense[$tag->id];
             }
+            /** @var Carbon $currentStart */
             $currentStart = clone $currentEnd;
             $currentStart->addDay();
         }
@@ -254,16 +289,23 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Show expense grouped by expense account.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function tagExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others)
+    public function tagExpense(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -278,16 +320,23 @@ class TagReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Show income grouped by tag.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $tags
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function tagIncome(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others)
+    public function tagIncome(Collection $accounts, Collection $tags, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -300,72 +349,5 @@ class TagReportController extends Controller
         $data      = $this->generator->pieChart($chartData);
 
         return response()->json($data);
-    }
-
-    /**
-     * @param Collection $accounts
-     * @param Collection $tags
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function getExpenses(Collection $accounts, Collection $tags, Carbon $start, Carbon $end): Collection
-    {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
-        $collector->setAccounts($accounts)->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL, TransactionType::TRANSFER])
-                  ->setTags($tags)->withOpposingAccount();
-        $collector->removeFilter(TransferFilter::class);
-
-        $collector->addFilter(OpposingAccountFilter::class);
-        $collector->addFilter(PositiveAmountFilter::class);
-
-        return $collector->getJournals();
-    }
-
-    /**
-     * @param Collection $accounts
-     * @param Collection $tags
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function getIncome(Collection $accounts, Collection $tags, Carbon $start, Carbon $end): Collection
-    {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
-        $collector->setAccounts($accounts)->setRange($start, $end)->setTypes([TransactionType::DEPOSIT, TransactionType::TRANSFER])
-                  ->setTags($tags)->withOpposingAccount();
-
-        $collector->addFilter(OpposingAccountFilter::class);
-        $collector->addFilter(NegativeAmountFilter::class);
-
-        return $collector->getJournals();
-    }
-
-    /**
-     * @param Collection $set
-     *
-     * @return array
-     */
-    private function groupByTag(Collection $set): array
-    {
-        // group by category ID:
-        $grouped = [];
-        /** @var Transaction $transaction */
-        foreach ($set as $transaction) {
-            $journal     = $transaction->transactionJournal;
-            $journalTags = $journal->tags;
-            /** @var Tag $journalTag */
-            foreach ($journalTags as $journalTag) {
-                $journalTagId           = $journalTag->id;
-                $grouped[$journalTagId] = $grouped[$journalTagId] ?? '0';
-                $grouped[$journalTagId] = bcadd($transaction->transaction_amount, $grouped[$journalTagId]);
-            }
-        }
-
-        return $grouped;
     }
 }

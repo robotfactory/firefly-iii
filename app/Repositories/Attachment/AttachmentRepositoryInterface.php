@@ -23,6 +23,7 @@ declare(strict_types=1);
 namespace FireflyIII\Repositories\Attachment;
 
 use Carbon\Carbon;
+use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Models\Attachment;
 use FireflyIII\User;
 use Illuminate\Support\Collection;
@@ -48,18 +49,11 @@ interface AttachmentRepositoryInterface
     public function exists(Attachment $attachment): bool;
 
     /**
-     * @param int $id
+     * @param int $attachmentId
      *
-     * @return Attachment
+     * @return Attachment|null
      */
-    public function find(int $id): Attachment;
-
-    /**
-     * @param int $id
-     *
-     * @return Attachment
-     */
-    public function findWithoutUser(int $id): Attachment;
+    public function findWithoutUser(int $attachmentId): ?Attachment;
 
     /**
      * @return Collection
@@ -94,6 +88,14 @@ interface AttachmentRepositoryInterface
      * @param User $user
      */
     public function setUser(User $user);
+
+    /**
+     * @param array $data
+     *
+     * @return Attachment
+     * @throws FireflyException
+     */
+    public function store(array $data): Attachment;
 
     /**
      * @param Attachment $attachment

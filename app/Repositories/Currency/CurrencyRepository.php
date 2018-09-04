@@ -27,12 +27,12 @@ use FireflyIII\Factory\TransactionCurrencyFactory;
 use FireflyIII\Models\CurrencyExchangeRate;
 use FireflyIII\Models\Preference;
 use FireflyIII\Models\TransactionCurrency;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use FireflyIII\Services\Internal\Destroy\CurrencyDestroyService;
 use FireflyIII\Services\Internal\Update\CurrencyUpdateService;
 use FireflyIII\User;
 use Illuminate\Support\Collection;
 use Log;
-use Preferences;
 
 /**
  * Class CurrencyRepository.
@@ -43,10 +43,13 @@ class CurrencyRepository implements CurrencyRepositoryInterface
     private $user;
 
     /**
-     * CurrencyRepository constructor.
+     * Constructor.
      */
     public function __construct()
     {
+        if ('testing' === env('APP_ENV')) {
+            Log::warning(sprintf('%s should not be instantiated in the TEST environment!', \get_class($this)));
+        }
     }
 
     /**
@@ -66,7 +69,7 @@ class CurrencyRepository implements CurrencyRepositoryInterface
         }
 
         // is the default currency for the user or the system
-        $defaultCode = Preferences::getForUser($this->user, 'currencyPreference', config('firefly.default_currency', 'EUR'))->data;
+        $defaultCode = app('preferences')->getForUser($this->user, 'currencyPreference', config('firefly.default_currency', 'EUR'))->data;
         if ($currency->code === $defaultCode) {
             return false;
         }
@@ -94,51 +97,17 @@ class CurrencyRepository implements CurrencyRepositoryInterface
      */
     public function destroy(TransactionCurrency $currency): bool
     {
-        if ($this->user->hasRole('owner')) {
+        /** @var UserRepositoryInterface $repository */
+        $repository = app(UserRepositoryInterface::class);
+
+
+        if ($repository->hasRole($this->user, 'owner')) {
             /** @var CurrencyDestroyService $service */
             $service = app(CurrencyDestroyService::class);
             $service->destroy($currency);
         }
 
         return true;
-    }
-
-    /**
-     * Find by ID.
-     *
-     * @param int $currencyId
-     *
-     * @deprecated
-     *
-     * @return TransactionCurrency
-     */
-    public function find(int $currencyId): TransactionCurrency
-    {
-        $currency = TransactionCurrency::find($currencyId);
-        if (null === $currency) {
-            $currency = new TransactionCurrency;
-        }
-
-        return $currency;
-    }
-
-    /**
-     * Find by currency code.
-     *
-     * @deprecated
-     *
-     * @param string $currencyCode
-     *
-     * @return TransactionCurrency
-     */
-    public function findByCode(string $currencyCode): TransactionCurrency
-    {
-        $currency = TransactionCurrency::where('code', $currencyCode)->first();
-        if (null === $currency) {
-            $currency = new TransactionCurrency;
-        }
-
-        return $currency;
     }
 
     /**
@@ -155,25 +124,6 @@ class CurrencyRepository implements CurrencyRepositoryInterface
     }
 
     /**
-     * Find by currency name.
-     *
-     * @param string $currencyName
-     *
-     * @deprecated
-     *
-     * @return TransactionCurrency
-     */
-    public function findByName(string $currencyName): TransactionCurrency
-    {
-        $preferred = TransactionCurrency::whereName($currencyName)->first();
-        if (null === $preferred) {
-            $preferred = new TransactionCurrency;
-        }
-
-        return $preferred;
-    }
-
-    /**
      * Find by currency name or return null.
      * Used in Import Currency!
      *
@@ -184,25 +134,6 @@ class CurrencyRepository implements CurrencyRepositoryInterface
     public function findByNameNull(string $currencyName): ?TransactionCurrency
     {
         return TransactionCurrency::whereName($currencyName)->first();
-    }
-
-    /**
-     * Find by currency symbol.
-     *
-     * @deprecated
-     *
-     * @param string $currencySymbol
-     *
-     * @return TransactionCurrency
-     */
-    public function findBySymbol(string $currencySymbol): TransactionCurrency
-    {
-        $currency = TransactionCurrency::whereSymbol($currencySymbol)->first();
-        if (null === $currency) {
-            $currency = new TransactionCurrency;
-        }
-
-        return $currency;
     }
 
     /**
@@ -265,13 +196,15 @@ class CurrencyRepository implements CurrencyRepositoryInterface
     }
 
     /**
+     * Get currency exchange rate.
+     *
      * @param TransactionCurrency $fromCurrency
      * @param TransactionCurrency $toCurrency
      * @param Carbon              $date
      *
-     * @return CurrencyExchangeRate
+     * @return CurrencyExchangeRate|null
      */
-    public function getExchangeRate(TransactionCurrency $fromCurrency, TransactionCurrency $toCurrency, Carbon $date): CurrencyExchangeRate
+    public function getExchangeRate(TransactionCurrency $fromCurrency, TransactionCurrency $toCurrency, Carbon $date): ?CurrencyExchangeRate
     {
         if ($fromCurrency->id === $toCurrency->id) {
             $rate       = new CurrencyExchangeRate;
@@ -280,7 +213,7 @@ class CurrencyRepository implements CurrencyRepositoryInterface
 
             return $rate;
         }
-
+        /** @var CurrencyExchangeRate $rate */
         $rate = $this->user->currencyExchangeRates()
                            ->where('from_currency_id', $fromCurrency->id)
                            ->where('to_currency_id', $toCurrency->id)
@@ -291,13 +224,13 @@ class CurrencyRepository implements CurrencyRepositoryInterface
             return $rate;
         }
 
-        return new CurrencyExchangeRate;
+        return null;
     }
 
     /**
      * @param User $user
      */
-    public function setUser(User $user)
+    public function setUser(User $user): void
     {
         $this->user = $user;
     }

@@ -32,8 +32,6 @@ return [
     'fallback_locale' => 'en_US',
     'key'             => env('APP_KEY'),
     'cipher'          => 'AES-256-CBC',
-    'log'             => envNonEmpty('APP_LOG', 'errorlog'),
-    'log_level'       => envNonEmpty('APP_LOG_LEVEL', 'info'),
     'providers'       => [
 
         /*
@@ -98,6 +96,7 @@ return [
         FireflyIII\Providers\SearchServiceProvider::class,
         FireflyIII\Providers\TagServiceProvider::class,
         FireflyIII\Providers\AdminServiceProvider::class,
+        FireflyIII\Providers\RecurringServiceProvider::class,
 
 
     ],

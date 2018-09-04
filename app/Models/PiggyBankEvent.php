@@ -22,14 +22,18 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use FireflyIII\Models\TransactionJournal;
-use FireflyIII\Models\PiggyBank;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class PiggyBankEvent.
  *
- * @property $piggyBank
+ * @property PiggyBank $piggyBank
+ * @property int       $transaction_journal_id
+ * @property int       $piggy_bank_id
+ * @property int       $id
+ * @property Carbon    date
  */
 class PiggyBankEvent extends Model
 {
@@ -44,22 +48,16 @@ class PiggyBankEvent extends Model
             'updated_at' => 'datetime',
             'date'       => 'date',
         ];
-    /** @var array */
-    protected $dates = ['date'];
-    /**
-     * @var array
-     */
+    /** @var array Fields that can be filled */
     protected $fillable = ['piggy_bank_id', 'transaction_journal_id', 'date', 'amount'];
-    /**
-     * @var array
-     */
+    /** @var array Hidden from view */
     protected $hidden = ['amount_encrypted'];
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function piggyBank()
+    public function piggyBank(): BelongsTo
     {
         return $this->belongsTo(PiggyBank::class);
     }
@@ -69,16 +67,16 @@ class PiggyBankEvent extends Model
      *
      * @param $value
      */
-    public function setAmountAttribute($value)
+    public function setAmountAttribute($value): void
     {
         $this->attributes['amount'] = (string)$value;
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function transactionJournal()
+    public function transactionJournal(): BelongsTo
     {
         return $this->belongsTo(TransactionJournal::class);
     }

@@ -26,10 +26,14 @@ use Illuminate\Support\Collection;
 
 /**
  * Class EmptyFilter.
+ *
+ * @codeCoverageIgnore
  */
 class EmptyFilter implements FilterInterface
 {
     /**
+     * Simply returns the set.
+     *
      * @param Collection $set
      *
      * @return Collection

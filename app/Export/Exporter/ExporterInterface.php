@@ -29,30 +29,43 @@ use Illuminate\Support\Collection;
 
 /**
  * Interface ExporterInterface.
+ *
+ * @codeCoverageIgnore
+ * @deprecated
  */
 interface ExporterInterface
 {
     /**
+     * Get entries.
+     *
      * @return Collection
      */
     public function getEntries(): Collection;
 
     /**
+     * Get file name.
+     *
      * @return string
      */
     public function getFileName(): string;
 
     /**
+     * Run exporter.
+     *
      * @return bool
      */
     public function run(): bool;
 
     /**
+     * Set entries.
+     *
      * @param Collection $entries
      */
     public function setEntries(Collection $entries);
 
     /**
+     * Set job.
+     *
      * @param ExportJob $job
      */
     public function setJob(ExportJob $job);

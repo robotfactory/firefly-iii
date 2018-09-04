@@ -40,6 +40,7 @@ interface CategoryRepositoryInterface
      */
     public function destroy(Category $category): bool;
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * @param Collection $categories
      * @param Collection $accounts
@@ -49,16 +50,6 @@ interface CategoryRepositoryInterface
      * @return string
      */
     public function earnedInPeriod(Collection $categories, Collection $accounts, Carbon $start, Carbon $end): string;
-
-    /**
-     * Find a category.
-     *
-     * @param int $categoryId
-     *
-     * @deprecated
-     * @return Category
-     */
-    public function find(int $categoryId): Category;
 
     /**
      * Find a category.
@@ -111,6 +102,7 @@ interface CategoryRepositoryInterface
      */
     public function lastUseDate(Category $category, Collection $accounts): ?Carbon;
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * @param Collection $categories
      * @param Collection $accounts
@@ -130,6 +122,7 @@ interface CategoryRepositoryInterface
      */
     public function periodExpensesNoCategory(Collection $accounts, Carbon $start, Carbon $end): array;
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * @param Collection $categories
      * @param Collection $accounts
@@ -154,6 +147,7 @@ interface CategoryRepositoryInterface
      */
     public function setUser(User $user);
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * @param Collection $categories
      * @param Collection $accounts
@@ -163,6 +157,31 @@ interface CategoryRepositoryInterface
      * @return string
      */
     public function spentInPeriod(Collection $categories, Collection $accounts, Carbon $start, Carbon $end): string;
+
+    /** @noinspection MoreThanThreeArgumentsInspection */
+
+    /**
+     * A very cryptic method name that means:
+     *
+     * Get me the amount spent in this period, grouped per currency, where no category was set.
+     *
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
+     *
+     * @return string
+     */
+    public function spentInPeriodPcWoCategory(Collection $accounts, Carbon $start, Carbon $end): array;
+
+    /**
+     * @param Collection $categories
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
+     *
+     * @return array
+     */
+    public function spentInPeriodPerCurrency(Collection $categories, Collection $accounts, Carbon $start, Carbon $end): array;
 
     /**
      * @param Collection $accounts

@@ -32,6 +32,7 @@ use Illuminate\Support\Collection;
 use Route;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class BinderTest
@@ -42,7 +43,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Account::routeBinder
+     * @covers \FireflyIII\Models\Account
      */
     public function testAccount(): void
     {
@@ -51,6 +52,7 @@ class BinderTest extends TestCase
             return 'OK';
         }
         );
+        Log::info(sprintf('Now in %s.', \get_class($this)));
 
         $this->be($this->user());
         $response = $this->get('/_test/binder/1');
@@ -59,7 +61,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\AccountList::routeBinder
+     * @covers \FireflyIII\Support\Binder\AccountList
      */
     public function testAccountList(): void
     {
@@ -76,7 +78,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\AccountList::routeBinder
+     * @covers \FireflyIII\Support\Binder\AccountList
      */
     public function testAccountListEmpty(): void
     {
@@ -92,7 +94,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\AccountList::routeBinder
+     * @covers \FireflyIII\Support\Binder\AccountList
      */
     public function testAccountListInvalid(): void
     {
@@ -109,7 +111,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\AccountList::routeBinder
+     * @covers \FireflyIII\Support\Binder\AccountList
      */
     public function testAccountListNotLoggedIn(): void
     {
@@ -124,7 +126,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Account::routeBinder
+     * @covers \FireflyIII\Models\Account
      */
     public function testAccountNotFound(): void
     {
@@ -141,7 +143,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Account::routeBinder
+     * @covers \FireflyIII\Models\Account
      */
     public function testAccountNotLoggedIn(): void
     {
@@ -157,7 +159,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Attachment::routeBinder
+     * @covers \FireflyIII\Models\Attachment
      */
     public function testAttachment(): void
     {
@@ -174,7 +176,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Attachment::routeBinder
+     * @covers \FireflyIII\Models\Attachment
      */
     public function testAttachmentNotFound(): void
     {
@@ -191,7 +193,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Attachment::routeBinder
+     * @covers \FireflyIII\Models\Attachment
      */
     public function testAttachmentNotLoggedIn(): void
     {
@@ -207,7 +209,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Bill::routeBinder
+     * @covers \FireflyIII\Models\Bill
      */
     public function testBill(): void
     {
@@ -224,7 +226,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Bill::routeBinder
+     * @covers \FireflyIII\Models\Bill
      */
     public function testBillNotFound(): void
     {
@@ -241,7 +243,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Bill::routeBinder
+     * @covers \FireflyIII\Models\Bill
      */
     public function testBillNotLoggedIn(): void
     {
@@ -257,7 +259,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Budget::routeBinder
+     * @covers \FireflyIII\Models\Budget
      */
     public function testBudget(): void
     {
@@ -274,7 +276,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\BudgetLimit::routeBinder
+     * @covers \FireflyIII\Models\BudgetLimit
      */
     public function testBudgetLimit(): void
     {
@@ -291,7 +293,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\BudgetLimit::routeBinder
+     * @covers \FireflyIII\Models\BudgetLimit
      */
     public function testBudgetLimitNotFound(): void
     {
@@ -308,7 +310,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\BudgetLimit::routeBinder
+     * @covers \FireflyIII\Models\BudgetLimit
      */
     public function testBudgetLimitNotLoggedIn(): void
     {
@@ -324,7 +326,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\BudgetList::routeBinder
+     * @covers \FireflyIII\Support\Binder\BudgetList
      */
     public function testBudgetList(): void
     {
@@ -341,7 +343,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\BudgetList::routeBinder
+     * @covers \FireflyIII\Support\Binder\BudgetList
      */
     public function testBudgetListInvalid(): void
     {
@@ -357,7 +359,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Budget::routeBinder
+     * @covers \FireflyIII\Models\Budget
      */
     public function testBudgetNotFound(): void
     {
@@ -374,7 +376,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Budget::routeBinder
+     * @covers \FireflyIII\Models\Budget
      */
     public function testBudgetNotLoggedIn(): void
     {
@@ -390,7 +392,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Category::routeBinder
+     * @covers \FireflyIII\Models\Category
      */
     public function testCategory(): void
     {
@@ -407,7 +409,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\CategoryList::routeBinder
+     * @covers \FireflyIII\Support\Binder\CategoryList
      */
     public function testCategoryList(): void
     {
@@ -424,7 +426,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\CategoryList::routeBinder
+     * @covers \FireflyIII\Support\Binder\CategoryList
      */
     public function testCategoryListInvalid(): void
     {
@@ -440,7 +442,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Category::routeBinder
+     * @covers \FireflyIII\Models\Category
      */
     public function testCategoryNotFound(): void
     {
@@ -457,7 +459,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Category::routeBinder
+     * @covers \FireflyIII\Models\Category
      */
     public function testCategoryNotLoggedIn(): void
     {
@@ -473,7 +475,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\CurrencyCode::routeBinder
+     * @covers \FireflyIII\Support\Binder\CurrencyCode
      */
     public function testCurrencyCode(): void
     {
@@ -490,7 +492,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\CurrencyCode::routeBinder
+     * @covers \FireflyIII\Support\Binder\CurrencyCode
      */
     public function testCurrencyCodeNotFound(): void
     {
@@ -507,7 +509,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\CurrencyCode::routeBinder
+     * @covers \FireflyIII\Support\Binder\CurrencyCode
      */
     public function testCurrencyCodeNotLoggedIn(): void
     {
@@ -523,7 +525,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDate(): void
     {
@@ -532,6 +534,13 @@ class BinderTest extends TestCase
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+
+        // mock fiscal helper:
+        $date   = new Carbon;
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/20170917');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
@@ -540,7 +549,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateCurrentMonthEnd(): void
     {
@@ -549,17 +558,23 @@ class BinderTest extends TestCase
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+        $date = new Carbon;
+        $date->endOfMonth();
+
+        // mock fiscal helper:
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentMonthEnd');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        $date = new Carbon;
-        $date->endOfMonth();
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateCurrentMonthStart(): void
     {
@@ -568,17 +583,23 @@ class BinderTest extends TestCase
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+        $date = new Carbon;
+        $date->startOfMonth();
+
+        // mock fiscal helper:
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentMonthStart');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        $date = new Carbon;
-        $date->startOfMonth();
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateCurrentYearEnd(): void
     {
@@ -587,36 +608,48 @@ class BinderTest extends TestCase
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+        $date = new Carbon;
+        $date->endOfYear();
+
+        // mock fiscal helper:
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentYearEnd');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        $date = new Carbon;
-        $date->endOfYear();
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateCurrentYearStart(): void
     {
+        $date = new Carbon;
+        $date->startOfYear();
         Route::middleware(Binder::class)->any(
             '/_test/binder/{date}', function (Carbon $date) {
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+
+        // mock fiscal helper:
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentYearStart');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        $date = new Carbon;
-        $date->startOfYear();
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateFiscalYearEnd(): void
     {
@@ -632,17 +665,17 @@ class BinderTest extends TestCase
         // mock fiscal helper:
         $helper = $this->mock(FiscalHelperInterface::class);
         $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
 
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentFiscalYearEnd');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateFiscalYearStart(): void
     {
@@ -657,18 +690,18 @@ class BinderTest extends TestCase
 
         // mock fiscal helper:
         $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
         $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
 
         $this->be($this->user());
         $response = $this->get('/_test/binder/currentFiscalYearStart');
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
-
         $response->assertSee('date: ' . $date->format('Y-m-d'));
     }
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\Date::routeBinder
+     * @covers \FireflyIII\Support\Binder\Date
      */
     public function testDateInvalid(): void
     {
@@ -677,6 +710,12 @@ class BinderTest extends TestCase
             return 'date: ' . $date->format('Y-m-d');
         }
         );
+        $date = new Carbon;
+        // mock fiscal helper:
+        $helper = $this->mock(FiscalHelperInterface::class);
+        $helper->shouldReceive('endOfFiscalYear')->andReturn($date)->once();
+        $helper->shouldReceive('startOfFiscalYear')->andReturn($date)->once();
+
         $this->be($this->user());
         $response = $this->get('/_test/binder/fakedate');
         $this->assertEquals(Response::HTTP_NOT_FOUND, $response->getStatusCode());
@@ -684,7 +723,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ExportJob::routeBinder
+     * @covers \FireflyIII\Models\ExportJob
      */
     public function testExportJob(): void
     {
@@ -701,7 +740,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ExportJob::routeBinder
+     * @covers \FireflyIII\Models\ExportJob
      */
     public function testExportJobNotFound(): void
     {
@@ -718,7 +757,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ExportJob::routeBinder
+     * @covers \FireflyIII\Models\ExportJob
      */
     public function testExportJobNotLoggedIn(): void
     {
@@ -734,7 +773,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ImportJob::routeBinder
+     * @covers \FireflyIII\Models\ImportJob
      */
     public function testImportJob(): void
     {
@@ -751,7 +790,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ImportJob::routeBinder
+     * @covers \FireflyIII\Models\ImportJob
      */
     public function testImportJobNotFound(): void
     {
@@ -768,7 +807,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\ImportJob::routeBinder
+     * @covers \FireflyIII\Models\ImportJob
      */
     public function testImportJobNotLoggedIn(): void
     {
@@ -784,7 +823,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\JournalList::routeBinder
+     * @covers \FireflyIII\Support\Binder\JournalList
      */
     public function testJournalList(): void
     {
@@ -801,7 +840,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\JournalList::routeBinder
+     * @covers \FireflyIII\Support\Binder\JournalList
      */
     public function testJournalListEmpty(): void
     {
@@ -817,7 +856,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\LinkType::routeBinder
+     * @covers \FireflyIII\Models\LinkType
      */
     public function testLinkType(): void
     {
@@ -834,7 +873,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\LinkType::routeBinder
+     * @covers \FireflyIII\Models\LinkType
      */
     public function testLinkTypeNotFound(): void
     {
@@ -851,7 +890,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\LinkType::routeBinder
+     * @covers \FireflyIII\Models\LinkType
      */
     public function testLinkTypeNotLoggedIn(): void
     {
@@ -867,7 +906,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\PiggyBank::routeBinder
+     * @covers \FireflyIII\Models\PiggyBank
      */
     public function testPiggyBank(): void
     {
@@ -884,7 +923,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\PiggyBank::routeBinder
+     * @covers \FireflyIII\Models\PiggyBank
      */
     public function testPiggyBankNotFound(): void
     {
@@ -901,7 +940,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\PiggyBank::routeBinder
+     * @covers \FireflyIII\Models\PiggyBank
      */
     public function testPiggyBankNotLoggedIn(): void
     {
@@ -917,7 +956,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Rule::routeBinder
+     * @covers \FireflyIII\Models\Rule
      */
     public function testRule(): void
     {
@@ -934,7 +973,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\RuleGroup::routeBinder
+     * @covers \FireflyIII\Models\RuleGroup
      */
     public function testRuleGroup(): void
     {
@@ -951,7 +990,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\RuleGroup::routeBinder
+     * @covers \FireflyIII\Models\RuleGroup
      */
     public function testRuleGroupNotFound(): void
     {
@@ -968,7 +1007,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\RuleGroup::routeBinder
+     * @covers \FireflyIII\Models\RuleGroup
      */
     public function testRuleGroupNotLoggedIn(): void
     {
@@ -984,7 +1023,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Rule::routeBinder
+     * @covers \FireflyIII\Models\Rule
      */
     public function testRuleNotFound(): void
     {
@@ -1001,7 +1040,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Rule::routeBinder
+     * @covers \FireflyIII\Models\Rule
      */
     public function testRuleNotLoggedIn(): void
     {
@@ -1017,7 +1056,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournal::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournal
      */
     public function testTJ(): void
     {
@@ -1034,7 +1073,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournal::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournal
      */
     public function testTJNotFound(): void
     {
@@ -1051,7 +1090,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournal::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournal
      */
     public function testTJNotLoggedIn(): void
     {
@@ -1067,7 +1106,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Tag::routeBinder
+     * @covers \FireflyIII\Models\Tag
      */
     public function testTag(): void
     {
@@ -1084,7 +1123,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\TagList::routeBinder
+     * @covers \FireflyIII\Support\Binder\TagList
      */
     public function testTagList(): void
     {
@@ -1110,7 +1149,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\TagList::routeBinder
+     * @covers \FireflyIII\Support\Binder\TagList
      */
     public function testTagListEmpty(): void
     {
@@ -1130,7 +1169,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Tag::routeBinder
+     * @covers \FireflyIII\Models\Tag
      */
     public function testTagNotFound(): void
     {
@@ -1147,7 +1186,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\Tag::routeBinder
+     * @covers \FireflyIII\Models\Tag
      */
     public function testTagNotLoggedIn(): void
     {
@@ -1163,7 +1202,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionCurrency::routeBinder
+     * @covers \FireflyIII\Models\TransactionCurrency
      */
     public function testTransactionCurrency(): void
     {
@@ -1180,7 +1219,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionCurrency::routeBinder
+     * @covers \FireflyIII\Models\TransactionCurrency
      */
     public function testTransactionCurrencyNotFound(): void
     {
@@ -1197,7 +1236,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionCurrency::routeBinder
+     * @covers \FireflyIII\Models\TransactionCurrency
      */
     public function testTransactionCurrencyNotLoggedIn(): void
     {
@@ -1213,7 +1252,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournalLink::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournalLink
      */
     public function testTransactionJournalLink(): void
     {
@@ -1230,7 +1269,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournalLink::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournalLink
      */
     public function testTransactionJournalLinkNotFound(): void
     {
@@ -1247,7 +1286,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionJournalLink::routeBinder
+     * @covers \FireflyIII\Models\TransactionJournalLink
      */
     public function testTransactionJournalLinkNotLoggedIn(): void
     {
@@ -1263,7 +1302,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionType::routeBinder
+     * @covers \FireflyIII\Models\TransactionType
      */
     public function testTransactionType(): void
     {
@@ -1280,7 +1319,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionType::routeBinder
+     * @covers \FireflyIII\Models\TransactionType
      */
     public function testTransactionTypeNotFound(): void
     {
@@ -1297,7 +1336,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Models\TransactionType::routeBinder
+     * @covers \FireflyIII\Models\TransactionType
      */
     public function testTransactionTypeNotLoggedIn(): void
     {
@@ -1313,7 +1352,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\UnfinishedJournal::routeBinder
+     * @covers \FireflyIII\Support\Binder\UnfinishedJournal
      */
     public function testUnfinishedJournal(): void
     {
@@ -1330,7 +1369,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\UnfinishedJournal::routeBinder
+     * @covers \FireflyIII\Support\Binder\UnfinishedJournal
      */
     public function testUnfinishedJournalFinished(): void
     {
@@ -1346,7 +1385,7 @@ class BinderTest extends TestCase
 
     /**
      * @covers \FireflyIII\Http\Middleware\Binder
-     * @covers \FireflyIII\Support\Binder\UnfinishedJournal::routeBinder
+     * @covers \FireflyIII\Support\Binder\UnfinishedJournal
      */
     public function testUnfinishedJournalNotLoggedIn(): void
     {

@@ -30,35 +30,41 @@ use FireflyIII\Models\TransactionJournal;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Repositories\Currency\CurrencyRepositoryInterface;
 use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Support\Collection;
 use Log;
-use Tests\TestCase;
 use Mockery;
+use Tests\TestCase;
 
 /**
  * Class ConfigurationControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class ReconcileControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::edit
+     * Test editing a reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testEdit(): void
     {
-        $repository  = $this->mock(JournalRepositoryInterface::class);
+        $repository    = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
+        // mock hasRole for user repository:
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
         $journal     = $this->user()->transactionJournals()->where('transaction_type_id', 5)->first();
         $transaction = $journal->transactions()->where('amount', '>', 0)->first();
         $repository->shouldReceive('firstNull')->andReturn($journal);
@@ -76,10 +82,15 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::edit
+     * Test the redirect if journal is not a reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testEditRedirect(): void
     {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journal = $this->user()->transactionJournals()->where('transaction_type_id', '!=', 5)->first();
         $this->be($this->user());
         $response = $this->get(route('accounts.reconcile.edit', [$journal->id]));
@@ -87,53 +98,24 @@ class ReconcileControllerTest extends TestCase
         $response->assertRedirect(route('transactions.edit', [$journal->id]));
     }
 
-    /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::overview()
-     */
-    public function testOverview(): void
-    {
-        $transactions = $this->user()->transactions()->inRandomOrder()->take(3)->get();
-        $repository   = $this->mock(JournalRepositoryInterface::class);
-        $repository->shouldReceive('firstNull')->andReturn(new TransactionJournal);
-        $repository->shouldReceive('getTransactionsById')->andReturn($transactions)->twice();
-
-        $parameters = [
-            'startBalance' => '0',
-            'endBalance'   => '10',
-            'transactions' => [1, 2, 3],
-            'cleared'      => [4, 5, 6],
-        ];
-        $this->be($this->user());
-        $response = $this->get(route('accounts.reconcile.overview', [1, '20170101', '20170131']) . '?' . http_build_query($parameters));
-        $response->assertStatus(200);
-    }
 
     /**
-     * @covers                   \FireflyIII\Http\Controllers\Account\ReconcileController::overview()
-     * @expectedExceptionMessage is not an asset account
-     */
-    public function testOverviewNotAsset(): void
-    {
-        $account    = $this->user()->accounts()->where('account_type_id', '!=', 3)->first();
-        $parameters = [
-            'startBalance' => '0',
-            'endBalance'   => '10',
-            'transactions' => [1, 2, 3],
-            'cleared'      => [4, 5, 6],
-        ];
-        $this->be($this->user());
-        $response = $this->get(route('accounts.reconcile.overview', [$account->id, '20170101', '20170131']) . '?' . http_build_query($parameters));
-        $response->assertStatus(500);
-    }
-
-    /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::__construct
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::reconcile()
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::redirectToOriginalAccount()
+     * Test showing the reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testReconcile(): void
     {
-        $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+        $repository   = $this->mock(CurrencyRepositoryInterface::class);
+        $accountRepos = $this->mock(AccountRepositoryInterface::class);
+
+        $accountRepos->shouldReceive('getMetaValue')
+                     ->withArgs([Mockery::any(), 'currency_id'])->andReturn('1')->atLeast()->once();
+
+        // mock hasRole for user repository:
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
         $repository->shouldReceive('findNull')->once()->andReturn(TransactionCurrency::find(1));
         $this->be($this->user());
         $response = $this->get(route('accounts.reconcile', [1, '20170101', '20170131']));
@@ -144,12 +126,16 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::__construct
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::reconcile()
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::redirectToOriginalAccount()
+     * Test showing the reconciliation (its a initial balance).
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testReconcileInitialBalance(): void
     {
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+        $repository   = $this->mock(CurrencyRepositoryInterface::class);
+        $accountRepos = $this->mock(AccountRepositoryInterface::class);
+
         $transaction = Transaction::leftJoin('accounts', 'accounts.id', '=', 'transactions.account_id')
                                   ->where('accounts.user_id', $this->user()->id)->where('accounts.account_type_id', 6)->first(['account_id']);
         $this->be($this->user());
@@ -158,13 +144,22 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::__construct
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::reconcile()
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::redirectToOriginalAccount()
+     * Test reconcile view (without date info).
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testReconcileNoDates(): void
     {
-        $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+        $repository   = $this->mock(CurrencyRepositoryInterface::class);
+        $accountRepos = $this->mock(AccountRepositoryInterface::class);
+
+        $accountRepos->shouldReceive('getMetaValue')
+                     ->withArgs([Mockery::any(), 'currency_id'])->andReturn('1')->atLeast()->once();
+
+        // mock hasRole for user repository:
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
         $repository->shouldReceive('findNull')->once()->andReturn(TransactionCurrency::find(1));
 
         $this->be($this->user());
@@ -176,13 +171,22 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::__construct
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::reconcile()
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::redirectToOriginalAccount()
+     * Test reconcile view (without end date).
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testReconcileNoEndDate(): void
     {
-        $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+        $repository   = $this->mock(CurrencyRepositoryInterface::class);
+        $accountRepos = $this->mock(AccountRepositoryInterface::class);
+
+        $accountRepos->shouldReceive('getMetaValue')
+                     ->withArgs([Mockery::any(), 'currency_id'])->andReturn('1')->atLeast()->once();
+
+        // mock hasRole for user repository:
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
         $repository->shouldReceive('findNull')->once()->andReturn(TransactionCurrency::find(1));
 
         $this->be($this->user());
@@ -194,12 +198,15 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::__construct
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::reconcile()
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::redirectToOriginalAccount()
+     * Test reconcile view when account is not an asset.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testReconcileNotAsset(): void
     {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $account = $this->user()->accounts()->where('account_type_id', '!=', 6)->where('account_type_id', '!=', 3)->first();
         $this->be($this->user());
         $response = $this->get(route('accounts.reconcile', [$account->id, '20170101', '20170131']));
@@ -207,12 +214,26 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::show()
+     * Test show for actual reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testShow(): void
     {
-        $journal    = $this->user()->transactionJournals()->where('transaction_type_id', 5)->first();
-        $repository = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+        $repository    = $this->mock(JournalRepositoryInterface::class);
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
+        $accountRepos->shouldReceive('getMetaValue')
+                     ->withArgs([Mockery::any(), 'currency_id'])->andReturn('1')->atLeast()->once();
+        $currencyRepos->shouldReceive('findNull')->atLeast()->once()->withArgs([1])->andReturn(TransactionCurrency::find(1));
+
+        // mock hasRole for user repository:
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(true)->atLeast()->once();
+
+        $journal = $this->user()->transactionJournals()->where('transaction_type_id', 5)->first();
+
         $repository->shouldReceive('firstNull')->andReturn(new TransactionJournal);
         $repository->shouldReceive('getAssetTransaction')->once()->andReturn($journal->transactions()->first());
 
@@ -224,11 +245,42 @@ class ReconcileControllerTest extends TestCase
         $response->assertSee('<ol class="breadcrumb">');
     }
 
+
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::show()
+     * Test show for actual reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
+     */
+    public function testShowError(): void
+    {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+        $repository    = $this->mock(JournalRepositoryInterface::class);
+
+        $journal = $this->user()->transactionJournals()->where('transaction_type_id', 5)->first();
+
+        $repository->shouldReceive('firstNull')->andReturn(new TransactionJournal);
+        $repository->shouldReceive('getAssetTransaction')->once()->andReturnNull();
+
+        $this->be($this->user());
+        $response = $this->get(route('accounts.reconcile.show', [$journal->id]));
+        $response->assertStatus(500);
+
+        // has bread crumb
+        $response->assertSee('The transaction data is incomplete. This is probably a bug. Apologies.');
+    }
+
+
+    /**
+     * Test show for actual reconciliation, but its not a reconciliation.
+     *
+     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController
      */
     public function testShowSomethingElse(): void
     {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journal = $this->user()->transactionJournals()->where('transaction_type_id', '!=', 5)->first();
         $this->be($this->user());
         $response = $this->get(route('accounts.reconcile.show', [$journal->id]));
@@ -237,19 +289,23 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController::submit()
+     * Submit reconciliation.
+     *
+     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController
      * @covers       \FireflyIII\Http\Requests\ReconciliationStoreRequest
      */
     public function testSubmit(): void
     {
-        $repository   = $this->mock(AccountRepositoryInterface::class);
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
+        $repository    = $this->mock(AccountRepositoryInterface::class);
+        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->andReturn(new TransactionJournal);
         $journalRepos->shouldReceive('reconcileById')->andReturn(true);
         $journalRepos->shouldReceive('store')->andReturn(new TransactionJournal);
         $repository->shouldReceive('getReconciliation')->andReturn(new Account);
         $repository->shouldReceive('findNull')->andReturn(new Account);
-        $repository->shouldReceive('getMetaValue')->withArgs([Mockery::any(),'currency_id'])->andReturn('1');
+        $repository->shouldReceive('getMetaValue')->withArgs([Mockery::any(), 'currency_id'])->andReturn('1');
 
         $data = [
             'transactions' => [1, 2, 3],
@@ -266,37 +322,15 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::transactions()
-     */
-    public function testTransactions(): void
-    {
-        $repository = $this->mock(CurrencyRepositoryInterface::class);
-        $repository->shouldReceive('findNull')->once()->andReturn(TransactionCurrency::find(1));
-
-        $this->be($this->user());
-        $response = $this->get(route('accounts.reconcile.transactions', [1, '20170101', '20170131']));
-        $response->assertStatus(200);
-    }
-
-    /**
-     * @covers \FireflyIII\Http\Controllers\Account\ReconcileController::transactions()
-     */
-    public function testTransactionsInitialBalance(): void
-    {
-        $transaction = Transaction::leftJoin('accounts', 'accounts.id', '=', 'transactions.account_id')
-                                  ->where('accounts.user_id', $this->user()->id)->where('accounts.account_type_id', 6)->first(['account_id']);
-        $this->be($this->user());
-        $response = $this->get(route('accounts.reconcile.transactions', [$transaction->account_id, '20170101', '20170131']));
-        $response->assertStatus(302);
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController::update
+     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController
      * @covers       \FireflyIII\Http\Requests\ReconciliationUpdateRequest
      */
     public function testUpdate(): void
     {
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
+        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->andReturn(new TransactionJournal);
         $journalRepos->shouldReceive('getJournalSourceAccounts')->andReturn(new Collection([new Account]));
         $journalRepos->shouldReceive('getJournalDestinationAccounts')->andReturn(new Collection([new Account]));
@@ -314,15 +348,16 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController::update
+     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController
      * @covers       \FireflyIII\Http\Requests\ReconciliationUpdateRequest
      */
     public function testUpdateNotReconcile(): void
     {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journal = $this->user()->transactionJournals()->where('transaction_type_id', '!=', 5)->first();
-        $data    = [
-            'amount' => '5',
-        ];
+        $data    = ['amount' => '5',];
 
         $this->be($this->user());
         $response = $this->post(route('accounts.reconcile.update', [$journal->id]), $data);
@@ -331,15 +366,16 @@ class ReconcileControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController::update
+     * @covers       \FireflyIII\Http\Controllers\Account\ReconcileController
      * @covers       \FireflyIII\Http\Requests\ReconciliationUpdateRequest
      */
     public function testUpdateZero(): void
     {
+        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
+        $currencyRepos = $this->mock(CurrencyRepositoryInterface::class);
+
         $journal = $this->user()->transactionJournals()->where('transaction_type_id', 5)->first();
-        $data    = [
-            'amount' => '0',
-        ];
+        $data    = ['amount' => '0',];
 
         $this->be($this->user());
         $response = $this->post(route('accounts.reconcile.update', [$journal->id]), $data);

@@ -22,12 +22,23 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use FireflyIII\Models\Budget;
 
 /**
  * Class BudgetLimit.
+ *
+ * @property Budget $budget
+ * @property int    $id
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property Carbon $start_date
+ * @property Carbon $end_date
+ * @property string $amount
+ * @property int    $budget_id
+ * @property string spent
  */
 class BudgetLimit extends Model
 {
@@ -42,14 +53,18 @@ class BudgetLimit extends Model
             'updated_at' => 'datetime',
             'start_date' => 'date',
             'end_date'   => 'date',
-            'repeats'    => 'boolean',
         ];
 
+    /** @var array Fields that can be filled */
+    protected $fillable = ['budget_id', 'start_date', 'end_date', 'amount'];
+
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return mixed
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): BudgetLimit
     {
@@ -68,20 +83,10 @@ class BudgetLimit extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function budget()
+    public function budget(): BelongsTo
     {
         return $this->belongsTo(Budget::class);
-    }
-
-    /**
-     * @codeCoverageIgnore
-     *
-     * @param $value
-     */
-    public function setAmountAttribute($value)
-    {
-        $this->attributes['amount'] = (string)round($value, 12);
     }
 }

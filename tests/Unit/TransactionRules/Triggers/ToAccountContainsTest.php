@@ -23,7 +23,9 @@ declare(strict_types=1);
 namespace Tests\Unit\TransactionRules\Triggers;
 
 use FireflyIII\Models\TransactionJournal;
+use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
 use FireflyIII\TransactionRules\Triggers\ToAccountContains;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 /**
@@ -32,56 +34,73 @@ use Tests\TestCase;
 class ToAccountContainsTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains
      */
     public function testTriggered(): void
     {
-        $journal     = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
-        $transaction = $journal->transactions()->where('amount', '>', 0)->first();
-        $account     = $transaction->account;
-        $trigger     = ToAccountContains::makeFromStrings($account->name, false);
-        $result      = $trigger->triggered($journal);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+
+        /** @var TransactionJournal $journal */
+        $journal    = $this->user()->transactionJournals()->inRandomOrder()->first();
+        $account    = $this->user()->accounts()->inRandomOrder()->first();
+        $collection = new Collection([$account]);
+        $repository->shouldReceive('getJournalDestinationAccounts')->once()->andReturn($collection);
+
+
+        $trigger = ToAccountContains::makeFromStrings($account->name, false);
+        $result  = $trigger->triggered($journal);
         $this->assertTrue($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains
      */
     public function testTriggeredNot(): void
     {
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
+        $repository = $this->mock(JournalRepositoryInterface::class);
+
+        /** @var TransactionJournal $journal */
+        $journal    = $this->user()->transactionJournals()->inRandomOrder()->first();
+        $account    = $this->user()->accounts()->inRandomOrder()->first();
+        $collection = new Collection([$account]);
+        $repository->shouldReceive('getJournalDestinationAccounts')->once()->andReturn($collection);
+
+
         $trigger = ToAccountContains::makeFromStrings('some name' . random_int(1, 234), false);
         $result  = $trigger->triggered($journal);
         $this->assertFalse($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains
      */
     public function testWillMatchEverythingEmpty(): void
     {
-        $value  = '';
-        $result = ToAccountContains::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = '';
+        $result     = ToAccountContains::willMatchEverything($value);
         $this->assertTrue($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains
      */
     public function testWillMatchEverythingNotNull(): void
     {
-        $value  = 'x';
-        $result = ToAccountContains::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = 'x';
+        $result     = ToAccountContains::willMatchEverything($value);
         $this->assertFalse($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\ToAccountContains
      */
     public function testWillMatchEverythingNull(): void
     {
-        $value  = null;
-        $result = ToAccountContains::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = null;
+        $result     = ToAccountContains::willMatchEverything($value);
         $this->assertTrue($result);
     }
 }

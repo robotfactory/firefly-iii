@@ -26,9 +26,12 @@ namespace FireflyIII\Import\Storage;
 
 use Carbon\Carbon;
 use DB;
+use FireflyIII\Events\RequestedReportOnJournals;
 use FireflyIII\Exceptions\FireflyException;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\InternalTransferFilter;
+use FireflyIII\Helpers\Filter\NegativeAmountFilter;
+use FireflyIII\Helpers\Filter\PositiveAmountFilter;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Models\Rule;
 use FireflyIII\Models\Transaction;
@@ -46,18 +49,20 @@ use Log;
  * Creates new transactions based upon arrays. Will first check the array for duplicates.
  *
  * Class ImportArrayStorage
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class ImportArrayStorage
 {
-    /** @var bool */
+    /** @var bool Check for transfers during import. */
     private $checkForTransfers = false;
-    /** @var ImportJob */
+    /** @var ImportJob The import job */
     private $importJob;
     /** @var JournalRepositoryInterface */
     private $journalRepos;
-    /** @var ImportJobRepositoryInterface */
+    /** @var ImportJobRepositoryInterface Import job repository */
     private $repository;
-    /** @var Collection */
+    /** @var Collection The transfers. */
     private $transfers;
 
     /**
@@ -102,11 +107,16 @@ class ImportArrayStorage
 
         // run rules, if configured to.
         $config = $this->importJob->configuration;
-        if (isset($config['apply-rules']) && $config['apply-rules'] === true) {
+        if (isset($config['apply-rules']) && true === $config['apply-rules']) {
             $this->setStatus('applying_rules');
             $this->applyRules($collection);
             $this->setStatus('rules_applied');
         }
+
+        app('preferences')->mark();
+
+        // email about this:
+        event(new RequestedReportOnJournals($this->importJob->user_id, $collection));
 
         return $collection;
     }
@@ -116,7 +126,6 @@ class ImportArrayStorage
      *
      * @param Collection $collection
      *
-     * @throws FireflyException
      */
     private function applyRules(Collection $collection): void
     {
@@ -126,7 +135,9 @@ class ImportArrayStorage
                 $rules->each(
                     function (Rule $rule) use ($journal) {
                         Log::debug(sprintf('Going to apply rule #%d to journal %d.', $rule->id, $journal->id));
-                        $processor = Processor::make($rule);
+                        /** @var Processor $processor */
+                        $processor = app(Processor::class);
+                        $processor->make($rule);
                         $processor->handleTransactionJournal($journal);
                         if ($rule->stop_processing) {
                             return false;
@@ -141,6 +152,8 @@ class ImportArrayStorage
 
     /**
      * Count the number of transfers in the array. If this is zero, don't bother checking for double transfers.
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     private function countTransfers(): void
     {
@@ -149,16 +162,16 @@ class ImportArrayStorage
         $array = $this->importJob->transactions;
         $count = 0;
         foreach ($array as $index => $transaction) {
-            if (strtolower(TransactionType::TRANSFER) === $transaction['type']) {
+            if (strtolower(TransactionType::TRANSFER) === strtolower($transaction['type'])) {
                 $count++;
-                Log::debug(sprintf('Row #%d is a transfer, increase count to %d', ($index + 1), $count));
+                Log::debug(sprintf('Row #%d is a transfer, increase count to %d', $index + 1, $count));
             }
         }
         if (0 === $count) {
-            Log::debug('Count is zero.');
+            Log::debug('Count is zero, will not check for duplicate transfers.');
         }
         if ($count > 0) {
-            Log::debug(sprintf('Count is %d', $count));
+            Log::debug(sprintf('Count is %d, will check for duplicate transfers.', $count));
             $this->checkForTransfers = true;
 
             // get users transfers. Needed for comparison.
@@ -168,6 +181,8 @@ class ImportArrayStorage
     }
 
     /**
+     * Get hash of transaction.
+     *
      * @param array $transaction
      *
      * @throws FireflyException
@@ -177,8 +192,10 @@ class ImportArrayStorage
     {
         unset($transaction['importHashV2']);
         $json = json_encode($transaction);
-        if ($json === false) {
-            throw new FireflyException('Could not encode import array. Please see the logs.', $transaction); // @codeCoverageIgnore
+        if (false === $json) {
+            /** @noinspection ForgottenDebugOutputInspection */
+            Log::error('Could not encode import array.', print_r($transaction, true));
+            throw new FireflyException('Could not encode import array. Please see the logs.'); // @codeCoverageIgnore
         }
         $hash = hash('sha256', $json, false);
         Log::debug(sprintf('The hash is: %s', $hash));
@@ -204,6 +221,35 @@ class ImportArrayStorage
     }
 
     /**
+     * @param $journal
+     *
+     * @return Transaction
+     */
+    private function getTransactionFromJournal($journal): Transaction
+    {
+        // collect transactions using the journal collector
+        $collector = app(TransactionCollectorInterface::class);
+        $collector->setUser($this->importJob->user);
+        $collector->withOpposingAccount();
+        // filter on specific journals.
+        $collector->setJournals(new Collection([$journal]));
+
+        // add filter to remove transactions:
+        $transactionType = $journal->transactionType->type;
+        if ($transactionType === TransactionType::WITHDRAWAL) {
+            $collector->addFilter(PositiveAmountFilter::class);
+        }
+        if (!($transactionType === TransactionType::WITHDRAWAL)) {
+            $collector->addFilter(NegativeAmountFilter::class);
+        }
+        /** @var Transaction $result */
+        $result = $collector->getTransactions()->first();
+        Log::debug(sprintf('Return transaction #%d with journal id #%d based on ID #%d', $result->id, $result->journal_id, $journal->id));
+
+        return $result;
+    }
+
+    /**
      * Get the users transfers, so they can be compared to whatever the user is trying to import.
      */
     private function getTransfers(): void
@@ -211,15 +257,15 @@ class ImportArrayStorage
         Log::debug('Now in getTransfers()');
         app('preferences')->mark();
 
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setUser($this->importJob->user);
         $collector->setAllAssetAccounts()
-                    ->ignoreCache()
+                  ->ignoreCache()
                   ->setTypes([TransactionType::TRANSFER])
                   ->withOpposingAccount();
         $collector->removeFilter(InternalTransferFilter::class);
-        $this->transfers = $collector->getJournals();
+        $this->transfers = $collector->getTransactions();
         Log::debug(sprintf('Count of getTransfers() is %d', $this->transfers->count()));
     }
 
@@ -229,7 +275,6 @@ class ImportArrayStorage
      * @param string $hash
      *
      * @return int|null
-     * @throws FireflyException
      */
     private function hashExists(string $hash): ?int
     {
@@ -251,14 +296,14 @@ class ImportArrayStorage
      */
     private function linkToTag(Collection $collection): void
     {
-        if ($collection->count() === 0) {
+        if (0 === $collection->count()) {
             return;
         }
         /** @var TagRepositoryInterface $repository */
         $repository = app(TagRepositoryInterface::class);
         $repository->setUser($this->importJob->user);
         $data = [
-            'tag'         => trans('import.import_with_key', ['key' => $this->importJob->key]),
+            'tag'         => (string)trans('import.import_with_key', ['key' => $this->importJob->key]),
             'date'        => new Carbon,
             'description' => null,
             'latitude'    => null,
@@ -301,7 +346,7 @@ class ImportArrayStorage
                 'existing'    => $existingId,
                 'description' => $transaction['description'] ?? '',
                 'amount'      => $transaction['transactions'][0]['amount'] ?? 0,
-                'date'        => isset($transaction['date']) ? $transaction['date'] : '',
+                'date'        => $transaction['date'] ?? '',
             ]
         );
 
@@ -319,7 +364,7 @@ class ImportArrayStorage
             [
                 'description' => $transaction['description'] ?? '',
                 'amount'      => $transaction['transactions'][0]['amount'] ?? 0,
-                'date'        => isset($transaction['date']) ? $transaction['date'] : '',
+                'date'        => $transaction['date'] ?? '',
             ]
         );
     }
@@ -339,6 +384,9 @@ class ImportArrayStorage
      *
      * @return Collection
      * @throws FireflyException
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     private function storeArray(): Collection
     {
@@ -363,24 +411,22 @@ class ImportArrayStorage
                 );
                 continue;
             }
-            if ($this->checkForTransfers) {
-                if ($this->transferExists($transaction)) {
-                    $this->logDuplicateTransfer($transaction);
-                    $this->repository->addErrorMessage(
-                        $this->importJob, sprintf(
-                                            'Row #%d ("%s") could not be imported. Such a transfer already exists.',
-                                            $index,
-                                            $transaction['description']
-                                        )
-                    );
-                    continue;
-                }
+            if ($this->checkForTransfers && $this->transferExists($transaction)) {
+                $this->logDuplicateTransfer($transaction);
+                $this->repository->addErrorMessage(
+                    $this->importJob, sprintf(
+                                        'Row #%d ("%s") could not be imported. Such a transfer already exists.',
+                                        $index,
+                                        $transaction['description']
+                                    )
+                );
+                continue;
             }
             $transaction['importHashV2'] = $hash;
             $toStore[]                   = $transaction;
         }
         $count = \count($toStore);
-        if ($count === 0) {
+        if (0 === $count) {
             Log::info('No transactions to store left!');
 
             return new Collection;
@@ -405,15 +451,42 @@ class ImportArrayStorage
                 continue;
             }
 
+            // do transfer detection again!
+            if ($this->checkForTransfers && $this->transferExists($store)) {
+                $this->logDuplicateTransfer($store);
+                $this->repository->addErrorMessage(
+                    $this->importJob, sprintf(
+                                        'Row #%d ("%s") could not be imported. Such a transfer already exists.',
+                                        $index,
+                                        $store['description']
+                                    )
+                );
+                continue;
+            }
 
             Log::debug(sprintf('Going to store entry %d of %d', $index + 1, $count));
             // convert the date to an object:
             $store['date']        = Carbon::createFromFormat('Y-m-d', $store['date']);
-            $store['description'] = $store['description'] === '' ? '(empty description)' : $store['description'];
+            $store['description'] = '' === $store['description'] ? '(empty description)' : $store['description'];
             // store the journal.
-            $journal = $this->journalRepos->store($store);
+            try {
+                $journal = $this->journalRepos->store($store);
+            } catch (FireflyException $e) {
+                Log::error($e->getMessage());
+                Log::error($e->getTraceAsString());
+                $this->repository->addErrorMessage($this->importJob, sprintf('Row #%d could not be imported. %s', $index, $e->getMessage()));
+                continue;
+            }
             Log::debug(sprintf('Stored as journal #%d', $journal->id));
             $collection->push($journal);
+
+            // add to collection of transfers, if necessary:
+            if ('transfer' === strtolower($store['type'])) {
+                $transaction = $this->getTransactionFromJournal($journal);
+                Log::debug('We just stored a transfer, so add the journal to the list of transfers.');
+                $this->transfers->push($transaction);
+                Log::debug(sprintf('List length is now %d', $this->transfers->count()));
+            }
         }
         Log::debug('DONE storing!');
 
@@ -426,17 +499,21 @@ class ImportArrayStorage
      * @param $transaction
      *
      * @return bool
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.NPathComplexity)
      */
     private function transferExists(array $transaction): bool
     {
         Log::debug('Check if is a double transfer.');
-        if (strtolower(TransactionType::TRANSFER) !== $transaction['type']) {
+        if (strtolower(TransactionType::TRANSFER) !== strtolower($transaction['type'])) {
             Log::debug(sprintf('Is a %s, not a transfer so no.', $transaction['type']));
 
             return false;
         }
         // how many hits do we need?
-        $requiredHits = count($transaction['transactions']) * 4;
+        $requiredHits = \count($transaction['transactions']) * 4;
         $totalHits    = 0;
         Log::debug(sprintf('Required hits for transfer comparison is %d', $requiredHits));
         Log::debug(sprintf('Array has %d transactions.', \count($transaction['transactions'])));
@@ -445,6 +522,7 @@ class ImportArrayStorage
         foreach ($transaction['transactions'] as $current) {
 
             // get the amount:
+            /** @noinspection UnnecessaryCastingInspection */
             $amount = (string)($current['amount'] ?? '0');
             if (bccomp($amount, '0') === -1) {
                 $amount = bcmul($amount, '-1'); // @codeCoverageIgnore
@@ -495,6 +573,7 @@ class ImportArrayStorage
                 // compare source and destination id's
                 $transferSourceIDs = [(int)$transfer->account_id, (int)$transfer->opposing_account_id];
                 sort($transferSourceIDs);
+                /** @noinspection DisconnectedForeachInstructionInspection */
                 Log::debug('Comparing current transaction source+dest IDs', $currentSourceIDs);
                 Log::debug('.. with current transfer source+dest IDs', $transferSourceIDs);
                 if ($currentSourceIDs === $transferSourceIDs) {
@@ -506,6 +585,7 @@ class ImportArrayStorage
                 // compare source and destination names
                 $transferSource = [(string)$transfer->account_name, (int)$transfer->opposing_account_name];
                 sort($transferSource);
+                /** @noinspection DisconnectedForeachInstructionInspection */
                 Log::debug('Comparing current transaction source+dest names', $currentSourceNames);
                 Log::debug('.. with current transfer source+dest names', $transferSource);
                 if ($currentSourceNames === $transferSource) {

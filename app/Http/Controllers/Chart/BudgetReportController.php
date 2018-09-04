@@ -25,33 +25,32 @@ namespace FireflyIII\Http\Controllers\Chart;
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
 use FireflyIII\Helpers\Chart\MetaPieChartInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
-use FireflyIII\Helpers\Filter\OpposingAccountFilter;
-use FireflyIII\Helpers\Filter\PositiveAmountFilter;
-use FireflyIII\Helpers\Filter\TransferFilter;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Models\Budget;
-use FireflyIII\Models\BudgetLimit;
-use FireflyIII\Models\Transaction;
-use FireflyIII\Models\TransactionType;
 use FireflyIII\Repositories\Budget\BudgetRepositoryInterface;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\AugumentData;
+use FireflyIII\Support\Http\Controllers\TransactionCalculation;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
 /**
  * Separate controller because many helper functions are shared.
  *
  * Class BudgetReportController
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class BudgetReportController extends Controller
 {
-    /** @var BudgetRepositoryInterface */
+    use AugumentData, TransactionCalculation;
+    /** @var BudgetRepositoryInterface The budget repository */
     private $budgetRepository;
-    /** @var GeneratorInterface */
+    /** @var GeneratorInterface Chart generation methods. */
     private $generator;
 
     /**
-     *
+     * BudgetReportController constructor.
      */
     public function __construct()
     {
@@ -66,16 +65,23 @@ class BudgetReportController extends Controller
         );
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Chart that groups expenses by the account.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $budgets
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function accountExpense(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end, string $others)
+    public function accountExpense(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -90,16 +96,23 @@ class BudgetReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Chart that groups the expenses by budget.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $budgets
      * @param Carbon     $start
      * @param Carbon     $end
      * @param string     $others
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
-    public function budgetExpense(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end, string $others)
+    public function budgetExpense(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end, string $others): JsonResponse
     {
         /** @var MetaPieChartInterface $helper */
         $helper = app(MetaPieChartInterface::class);
@@ -114,15 +127,23 @@ class BudgetReportController extends Controller
         return response()->json($data);
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Main overview of a budget in the budget report.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $budgets
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function mainChart(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end)
+    public function mainChart(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end): JsonResponse
     {
         $cache = new CacheProperties;
         $cache->addProperty('chart.budget.report.main');
@@ -167,7 +188,7 @@ class BudgetReportController extends Controller
         while ($currentStart < $end) {
             $currentEnd = clone $currentStart;
             $currentEnd = $currentEnd->$function();
-            $expenses   = $this->groupByBudget($this->getExpenses($accounts, $budgets, $currentStart, $currentEnd));
+            $expenses   = $this->groupByBudget($this->getExpensesInBudgets($accounts, $budgets, $currentStart, $currentEnd));
             $label      = $currentStart->formatLocalized($format);
 
             /** @var Budget $budget */
@@ -187,6 +208,7 @@ class BudgetReportController extends Controller
                     $chartData[$budget->id . '-left']['entries'][$label] = $leftOfLimits[$budgetLimitId];
                 }
             }
+            /** @var Carbon $currentStart */
             $currentStart = clone $currentEnd;
             $currentStart->addDay();
         }
@@ -197,74 +219,4 @@ class BudgetReportController extends Controller
         return response()->json($data);
     }
 
-    /**
-     * Returns the budget limits belonging to the given budget and valid on the given day.
-     *
-     * @param Collection $budgetLimits
-     * @param Budget     $budget
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function filterBudgetLimits(Collection $budgetLimits, Budget $budget, Carbon $start, Carbon $end): Collection
-    {
-        $set = $budgetLimits->filter(
-            function (BudgetLimit $budgetLimit) use ($budget, $start, $end) {
-                if ($budgetLimit->budget_id === $budget->id
-                    && $budgetLimit->start_date->lte($start) // start of budget limit is on or before start
-                    && $budgetLimit->end_date->gte($end) // end of budget limit is on or after end
-                ) {
-                    return $budgetLimit;
-                }
-
-                return false;
-            }
-        );
-
-        return $set;
-    }
-
-    /**
-     * @param Collection $accounts
-     * @param Collection $budgets
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function getExpenses(Collection $accounts, Collection $budgets, Carbon $start, Carbon $end): Collection
-    {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
-        $collector->setAccounts($accounts)->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL, TransactionType::TRANSFER])
-                  ->setBudgets($budgets)->withOpposingAccount();
-        $collector->removeFilter(TransferFilter::class);
-
-        $collector->addFilter(OpposingAccountFilter::class);
-        $collector->addFilter(PositiveAmountFilter::class);
-
-        return $collector->getJournals();
-    }
-
-    /**
-     * @param Collection $set
-     *
-     * @return array
-     */
-    private function groupByBudget(Collection $set): array
-    {
-        // group by category ID:
-        $grouped = [];
-        /** @var Transaction $transaction */
-        foreach ($set as $transaction) {
-            $jrnlBudId          = (int)$transaction->transaction_journal_budget_id;
-            $transBudId         = (int)$transaction->transaction_budget_id;
-            $budgetId           = max($jrnlBudId, $transBudId);
-            $grouped[$budgetId] = $grouped[$budgetId] ?? '0';
-            $grouped[$budgetId] = bcadd($transaction->transaction_amount, $grouped[$budgetId]);
-        }
-
-        return $grouped;
-    }
 }

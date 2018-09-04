@@ -24,12 +24,14 @@ namespace FireflyIII\Generator\Report\Account;
 
 /**
  * Class YearReportGenerator.
+ *
+ * @codeCoverageIgnore
  */
 class YearReportGenerator extends MonthReportGenerator
 {
-    // Doesn't do anything different.
-
     /**
+     * Returns the preferred period.
+     *
      * @return string
      */
     protected function preferredPeriod(): string

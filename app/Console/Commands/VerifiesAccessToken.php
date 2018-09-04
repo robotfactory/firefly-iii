@@ -1,5 +1,4 @@
 <?php
-
 /**
  * VerifiesAccessToken.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -26,12 +25,12 @@ namespace FireflyIII\Console\Commands;
 
 use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Log;
-use Preferences;
 
 /**
  * Trait VerifiesAccessToken.
  *
  * Verifies user access token for sensitive commands.
+ * @codeCoverageIgnore
  */
 trait VerifiesAccessToken
 {
@@ -62,7 +61,7 @@ trait VerifiesAccessToken
 
             return false;
         }
-        $accessToken = Preferences::getForUser($user, 'access_token', null);
+        $accessToken = app('preferences')->getForUser($user, 'access_token', null);
         if (null === $accessToken) {
             Log::error(sprintf('User #%d has no access token, so cannot access command line options.', $userId));
 

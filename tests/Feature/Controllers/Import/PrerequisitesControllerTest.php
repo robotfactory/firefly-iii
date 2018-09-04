@@ -25,6 +25,7 @@ namespace Tests\Feature\Controllers\Import;
 use FireflyIII\Import\Prerequisites\FakePrerequisites;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Support\MessageBag;
 use Log;
 use Mockery;
@@ -42,10 +43,10 @@ class PrerequisitesControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
@@ -53,21 +54,25 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testIndex(): void
     {
+        $userRepos         = $this->mock(UserRepositoryInterface::class);
+        $prereq     = $this->mock(FakePrerequisites::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'A_pre_job_' . random_int(1, 1000);
+        $job->key          = 'A_pre_job_' . random_int(1, 10000);
         $job->status       = 'new';
         $job->provider     = 'fake';
         $job->transactions = [];
         $job->file_type    = '';
         $job->save();
 
-        // mock stuff
-        $prereq     = $this->mock(FakePrerequisites::class);
-        $repository = $this->mock(ImportJobRepositoryInterface::class);
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
 
-        $prereq->shouldReceive('setUser')->once();
-        $prereq->shouldReceive('isComplete')->once()->andReturn(false);
+
+        $prereq->shouldReceive('setUser')->times(2);
+        $prereq->shouldReceive('isComplete')->times(2)->andReturn(false);
         $prereq->shouldReceive('getView')->once()->andReturn('import.fake.prerequisites');
         $prereq->shouldReceive('getViewParameters')->once()->andReturn(['api_key' => '']);
 
@@ -83,14 +88,21 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testIndexBadState(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'B_pre_job_' . random_int(1, 1000);
+        $job->key          = 'B_pre_job_' . random_int(1, 10000);
         $job->status       = 'some_Bad_state';
         $job->provider     = 'fake';
         $job->transactions = [];
         $job->file_type    = '';
         $job->save();
+
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
+
 
         $this->be($this->user());
         $response = $this->get(route('import.prerequisites.index', ['fake', $job->key]));
@@ -103,22 +115,23 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testIndexComplete(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $prereq     = $this->mock(FakePrerequisites::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'C_pre_job_' . random_int(1, 1000);
+        $job->key          = 'C_pre_job_' . random_int(1, 10000);
         $job->status       = 'new';
         $job->provider     = 'fake';
         $job->transactions = [];
         $job->file_type    = '';
         $job->save();
 
-        // mock stuff
-        $prereq     = $this->mock(FakePrerequisites::class);
-        $repository = $this->mock(ImportJobRepositoryInterface::class);
-
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
         $repository->shouldReceive('setStatus')->once()->withArgs([Mockery::any(), 'has_prereq']);
-        $prereq->shouldReceive('setUser')->once();
-        $prereq->shouldReceive('isComplete')->once()->andReturn(true);
+        $prereq->shouldReceive('setUser')->times(2);
+        $prereq->shouldReceive('isComplete')->times(2)->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('import.prerequisites.index', ['fake', $job->key]));
@@ -134,22 +147,24 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testPost(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $prereq     = $this->mock(FakePrerequisites::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'D_pre_job_' . random_int(1, 1000);
+        $job->key          = 'D_pre_job_' . random_int(1, 10000);
         $job->status       = 'new';
         $job->provider     = 'fake';
         $job->transactions = [];
         $job->file_type    = '';
         $job->save();
 
-        // mock stuff
-        $prereq     = $this->mock(FakePrerequisites::class);
-        $repository = $this->mock(ImportJobRepositoryInterface::class);
-
-        $prereq->shouldReceive('setUser')->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
+        $prereq->shouldReceive('setUser')->times(2);
         $prereq->shouldReceive('storePrerequisites')->once()->andReturn(new MessageBag);
         $repository->shouldReceive('setStatus')->once()->withArgs([Mockery::any(), 'has_prereq']);
+        $prereq->shouldReceive('isComplete')->times(1)->andReturn(false);
 
         $this->be($this->user());
         $response = $this->post(route('import.prerequisites.post', ['fake', $job->key]));
@@ -164,18 +179,22 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testPostBadState(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $prereq     = $this->mock(FakePrerequisites::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'D_pre_job_' . random_int(1, 1000);
+        $job->key          = 'D_pre_job_' . random_int(1, 10000);
         $job->status       = 'badstate';
         $job->provider     = 'fake';
         $job->transactions = [];
         $job->file_type    = '';
         $job->save();
 
-        // mock stuff
-        $prereq     = $this->mock(FakePrerequisites::class);
-        $repository = $this->mock(ImportJobRepositoryInterface::class);
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
+        $prereq->shouldReceive('setUser')->times(1);
+        $prereq->shouldReceive('isComplete')->times(1)->andReturn(false);
 
         $this->be($this->user());
         $response = $this->post(route('import.prerequisites.post', ['fake', $job->key]));
@@ -191,12 +210,17 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testPostNoJob(): void
     {
-        // mock stuff
+        $userRepos = $this->mock(UserRepositoryInterface::class);
         $prereq     = $this->mock(FakePrerequisites::class);
         $repository = $this->mock(ImportJobRepositoryInterface::class);
 
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
+
         $prereq->shouldReceive('setUser')->once();
         $prereq->shouldReceive('storePrerequisites')->once()->andReturn(new MessageBag);
+
+        $prereq->shouldReceive('setUser')->times(1);
+        $prereq->shouldReceive('isComplete')->times(1)->andReturn(false);
 
         $this->be($this->user());
         $response = $this->post(route('import.prerequisites.post', ['fake']));
@@ -211,9 +235,13 @@ class PrerequisitesControllerTest extends TestCase
      */
     public function testPostWithMessages(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $prereq     = $this->mock(FakePrerequisites::class);
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+
         $job               = new ImportJob;
         $job->user_id      = $this->user()->id;
-        $job->key          = 'D_pre_job_' . random_int(1, 1000);
+        $job->key          = 'D_pre_job_' . random_int(1, 10000);
         $job->status       = 'new';
         $job->provider     = 'fake';
         $job->transactions = [];
@@ -222,10 +250,10 @@ class PrerequisitesControllerTest extends TestCase
 
         $messages = new MessageBag;
         $messages->add('some', 'message');
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->atLeast()->once()->andReturn(false);
 
-        // mock stuff
-        $prereq     = $this->mock(FakePrerequisites::class);
-        $repository = $this->mock(ImportJobRepositoryInterface::class);
+        $prereq->shouldReceive('setUser')->times(1);
+        $prereq->shouldReceive('isComplete')->times(1)->andReturn(false);
 
         $prereq->shouldReceive('setUser')->once();
         $prereq->shouldReceive('storePrerequisites')->once()->andReturn($messages);

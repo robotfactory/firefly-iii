@@ -25,21 +25,35 @@ namespace FireflyIII\Repositories\Attachment;
 use Carbon\Carbon;
 use Crypt;
 use Exception;
+use FireflyIII\Exceptions\FireflyException;
+use FireflyIII\Factory\AttachmentFactory;
 use FireflyIII\Helpers\Attachments\AttachmentHelperInterface;
 use FireflyIII\Models\Attachment;
 use FireflyIII\Models\Note;
 use FireflyIII\User;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Collection;
 use Log;
 use Storage;
 
 /**
  * Class AttachmentRepository.
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class AttachmentRepository implements AttachmentRepositoryInterface
 {
     /** @var User */
     private $user;
+
+    /**
+     * Constructor.
+     */
+    public function __construct()
+    {
+        if ('testing' === env('APP_ENV')) {
+            Log::warning(sprintf('%s should not be instantiated in the TEST environment!', \get_class($this)));
+        }
+    }
 
     /**
      * @param Attachment $attachment
@@ -56,7 +70,7 @@ class AttachmentRepository implements AttachmentRepositoryInterface
         try {
             unlink($file);
         } catch (Exception $e) {
-            Log::error(sprintf('Could not delete file for attachment %d.', $attachment->id));
+            Log::error(sprintf('Could not delete file for attachment %d: %s', $attachment->id, $e->getMessage()));
         }
         $attachment->delete();
 
@@ -77,33 +91,14 @@ class AttachmentRepository implements AttachmentRepositoryInterface
     }
 
     /**
-     * @param int $id
+     * @param int $attachmentId
      *
-     * @return Attachment
+     * @return Attachment|null
      */
-    public function find(int $id): Attachment
+    public function findWithoutUser(int $attachmentId): ?Attachment
     {
-        $attachment = $this->user->attachments()->find($id);
-        if (null === $attachment) {
-            return new Attachment;
-        }
 
-        return $attachment;
-    }
-
-    /**
-     * @param int $id
-     *
-     * @return Attachment
-     */
-    public function findWithoutUser(int $id): Attachment
-    {
-        $attachment = Attachment::find($id);
-        if (null === $attachment) {
-            return new Attachment;
-        }
-
-        return $attachment;
+        return Attachment::find($attachmentId);
     }
 
     /**
@@ -136,9 +131,6 @@ class AttachmentRepository implements AttachmentRepositoryInterface
      * @param Attachment $attachment
      *
      * @return string
-     *
-     * @throws \Illuminate\Contracts\Encryption\DecryptException
-     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
     public function getContent(Attachment $attachment): string
     {
@@ -148,7 +140,12 @@ class AttachmentRepository implements AttachmentRepositoryInterface
         $content = '';
 
         if ($disk->exists($file)) {
-            $content = Crypt::decrypt($disk->get($file));
+            try {
+                $content = Crypt::decrypt($disk->get($file));
+            } catch (FileNotFoundException $e) {
+                Log::debug(sprintf('File not found: %e', $e->getMessage()));
+                $content = false;
+            }
         }
         if (\is_bool($content)) {
             Log::error(sprintf('Attachment #%d may be corrupted: the content could not be decrypted.', $attachment->id));
@@ -179,9 +176,28 @@ class AttachmentRepository implements AttachmentRepositoryInterface
     /**
      * @param User $user
      */
-    public function setUser(User $user)
+    public function setUser(User $user): void
     {
         $this->user = $user;
+    }
+
+    /**
+     * @param array $data
+     *
+     * @return Attachment
+     * @throws FireflyException
+     */
+    public function store(array $data): Attachment
+    {
+        /** @var AttachmentFactory $factory */
+        $factory = app(AttachmentFactory::class);
+        $factory->setUser($this->user);
+        $result = $factory->create($data);
+        if (null === $result) {
+            throw new FireflyException('Could not store attachment.');
+        }
+
+        return $result;
     }
 
     /**
@@ -193,8 +209,13 @@ class AttachmentRepository implements AttachmentRepositoryInterface
     public function update(Attachment $attachment, array $data): Attachment
     {
         $attachment->title = $data['title'];
+
+        // update filename, if present and different:
+        if (isset($data['filename']) && '' !== $data['filename'] && $data['filename'] !== $attachment->filename) {
+            $attachment->filename = $data['filename'];
+        }
         $attachment->save();
-        $this->updateNote($attachment, $data['notes']);
+        $this->updateNote($attachment, $data['notes'] ?? '');
 
         return $attachment;
     }
@@ -207,7 +228,7 @@ class AttachmentRepository implements AttachmentRepositoryInterface
      */
     public function updateNote(Attachment $attachment, string $note): bool
     {
-        if (0 === \strlen($note)) {
+        if ('' === $note) {
             $dbNote = $attachment->notes()->first();
             if (null !== $dbNote) {
                 $dbNote->delete();

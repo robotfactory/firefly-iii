@@ -28,6 +28,7 @@ use FireflyIII\Repositories\User\UserRepositoryInterface;
 use FireflyIII\User;
 use Laravel\Passport\Passport;
 use Log;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -39,45 +40,45 @@ class UserControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         Passport::actingAs($this->user());
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
 
     }
 
     /**
      * Delete a user.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::delete
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      * @covers \FireflyIII\Api\V1\Requests\UserRequest
      */
     public function testDelete(): void
     {
+        $userRepository = $this->mock(UserRepositoryInterface::class);
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
+        $userRepository->shouldReceive('destroy')->once();
         // create a user first:
-        $user = User::create(['email' => 'some@newu' . random_int(1, 1000) . 'ser.nl', 'password' => 'hello', 'blocked' => 0]);
-
         // call API
-        $response = $this->delete('/api/v1/users/' . $user->id);
+        $response = $this->delete('/api/v1/users/' . $this->user()->id);
         $response->assertStatus(204);
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }
 
     /**
      * Delete a user as non admin
      *
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::delete
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      * @covers \FireflyIII\Api\V1\Requests\UserRequest
      */
     public function testDeleteNoAdmin(): void
     {
+        $userRepository = $this->mock(UserRepositoryInterface::class);
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(false);
         Passport::actingAs($this->emptyUser());
 
         // create a user first:
-        $user = User::create(['email' => 'some@newu' . random_int(1, 1000) . 'ser.nl', 'password' => 'hello', 'blocked' => 0]);
+        $user = User::create(['email' => 'some@newu' . random_int(1, 10000) . 'ser.nl', 'password' => 'hello', 'blocked' => 0]);
 
         // call API
         $response = $this->delete('/api/v1/users/' . $user->id);
@@ -86,8 +87,9 @@ class UserControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::index
+     * Show list of users.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      */
     public function testIndex(): void
     {
@@ -95,6 +97,7 @@ class UserControllerTest extends TestCase
         $users = factory(User::class, 10)->create();
         // mock stuff:
         $repository = $this->mock(UserRepositoryInterface::class);
+        $repository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->once()->andReturn(true);
 
         // mock calls:
         $repository->shouldReceive('all')->withAnyArgs()->andReturn($users)->once();
@@ -111,11 +114,15 @@ class UserControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::show
+     * Show single user.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      */
     public function testShow(): void
     {
-        $user = User::first();
+        $user       = User::first();
+        $repository = $this->mock(UserRepositoryInterface::class);
+        $repository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->once()->andReturn(true);
 
         // test API
         $response = $this->get('/api/v1/users/' . $user->id);
@@ -124,18 +131,21 @@ class UserControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::store
+     * Store new user.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      * @covers \FireflyIII\Api\V1\Requests\UserRequest
      */
     public function testStoreBasic(): void
     {
         $data = [
-            'email'   => 'some_new@user' . random_int(1, 1000) . '.com',
+            'email'   => 'some_new@user' . random_int(1, 10000) . '.com',
             'blocked' => 0,
         ];
 
         // mock
         $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->twice()->andReturn(true);
         $userRepos->shouldReceive('store')->once()->andReturn($this->user());
 
         // test API
@@ -145,7 +155,9 @@ class UserControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::store
+     * Store user with info already used.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      * @covers \FireflyIII\Api\V1\Requests\UserRequest
      */
     public function testStoreNotUnique(): void
@@ -157,7 +169,7 @@ class UserControllerTest extends TestCase
 
         // mock
         $userRepos = $this->mock(UserRepositoryInterface::class);
-
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->twice()->andReturn(true);
         // test API
         $response = $this->post('/api/v1/users', $data, ['Accept' => 'application/json']);
         $response->assertStatus(422);
@@ -174,23 +186,26 @@ class UserControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\UserController::update
+     * Update user.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\UserController
      * @covers \FireflyIII\Api\V1\Requests\UserRequest
      */
     public function testUpdate(): void
     {
         // create a user first:
-        $user = User::create(['email' => 'some@newu' . random_int(1, 1000) . 'ser.nl', 'password' => 'hello', 'blocked' => 0]);
+        $user = User::create(['email' => 'some@newu' . random_int(1, 10000) . 'ser.nl', 'password' => 'hello', 'blocked' => 0]);
 
         // data:
         $data = [
-            'email'   => 'some-new@email' . random_int(1, 1000) . '.com',
+            'email'   => 'some-new@email' . random_int(1, 10000) . '.com',
             'blocked' => 0,
         ];
 
         // mock
         $userRepos = $this->mock(UserRepositoryInterface::class);
         $userRepos->shouldReceive('update')->once()->andReturn($user);
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->twice()->andReturn(true);
 
         // call API
         $response = $this->put('/api/v1/users/' . $user->id, $data);

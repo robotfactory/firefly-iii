@@ -23,8 +23,10 @@ declare(strict_types=1);
 namespace FireflyIII\Services\Password;
 
 use Exception;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use Log;
-use Requests;
+use RuntimeException;
 
 /**
  * Class PwndVerifierV2.
@@ -44,27 +46,37 @@ class PwndVerifierV2 implements Verifier
         $prefix = substr($hash, 0, 5);
         $rest   = substr($hash, 5);
         $uri    = sprintf('https://api.pwnedpasswords.com/range/%s', $prefix);
-        $opt    = ['useragent' => 'Firefly III v' . config('firefly.version'), 'timeout' => 2];
+        $opt    = [
+            'headers' => ['User-Agent' => 'Firefly III v' . config('firefly.version')],
+            'timeout' => 2];
 
         Log::debug(sprintf('hash prefix is %s', $prefix));
         Log::debug(sprintf('rest is %s', $rest));
 
         try {
-            $result = Requests::get($uri, $opt);
-        } catch (Exception $e) {
+            $client = new Client();
+            $res    = $client->request('GET', $uri, $opt);
+        } catch (GuzzleException|Exception $e) {
+            Log::error(sprintf('Could not verify password security: %s', $e->getMessage()));
+
             return true;
         }
-        Log::debug(sprintf('Status code returned is %d', $result->status_code));
-        if (404 === $result->status_code) {
+        Log::debug(sprintf('Status code returned is %d', $res->getStatusCode()));
+        if (404 === $res->getStatusCode()) {
             return true;
         }
-        $strpos = stripos($result->body, $rest);
-        if ($strpos === false) {
+        try {
+            $strpos = stripos($res->getBody()->getContents(), $rest);
+        } catch (RuntimeException $e) {
+            Log::error(sprintf('Could not get body from Pwnd result: %s', $e->getMessage()));
+            $strpos = false;
+        }
+        if (false === $strpos) {
             Log::debug(sprintf('%s was not found in result body. Return true.', $rest));
 
             return true;
         }
-        Log::debug('Could not find %s, return FALSE.');
+        Log::debug(sprintf('Could not find %s, return FALSE.', $rest));
 
         return false;
     }

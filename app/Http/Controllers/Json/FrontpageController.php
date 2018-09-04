@@ -25,6 +25,9 @@ namespace FireflyIII\Http\Controllers\Json;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Models\PiggyBank;
 use FireflyIII\Repositories\PiggyBank\PiggyBankRepositoryInterface;
+use Illuminate\Http\JsonResponse;
+use Log;
+use Throwable;
 
 /**
  * Class FrontpageController.
@@ -32,12 +35,13 @@ use FireflyIII\Repositories\PiggyBank\PiggyBankRepositoryInterface;
 class FrontpageController extends Controller
 {
     /**
+     * Piggy bank pie chart.
+     *
      * @param PiggyBankRepositoryInterface $repository
      *
-     * @return \Illuminate\Http\JsonResponse
-     * @throws \Throwable
+     * @return JsonResponse
      */
-    public function piggyBanks(PiggyBankRepositoryInterface $repository)
+    public function piggyBanks(PiggyBankRepositoryInterface $repository): JsonResponse
     {
         $set  = $repository->getPiggyBanks();
         $info = [];
@@ -61,7 +65,14 @@ class FrontpageController extends Controller
         }
         $html = '';
         if (\count($info) > 0) {
-            $html = view('json.piggy-banks', compact('info'))->render();
+            try {
+                $html = view('json.piggy-banks', compact('info'))->render();
+                // @codeCoverageIgnoreStart
+            } catch (Throwable $e) {
+                Log::error(sprintf('Cannot render json.piggy-banks: %s', $e->getMessage()));
+                $html = 'Could not render view.';
+            }
+            // @codeCoverageIgnoreEnd
         }
 
         return response()->json(['html' => $html]);

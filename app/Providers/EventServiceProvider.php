@@ -26,6 +26,7 @@ use Exception;
 use FireflyIII\Events\AdminRequestedTestMessage;
 use FireflyIII\Events\RegisteredUser;
 use FireflyIII\Events\RequestedNewPassword;
+use FireflyIII\Events\RequestedReportOnJournals;
 use FireflyIII\Events\RequestedVersionCheckStatus;
 use FireflyIII\Events\StoredTransactionJournal;
 use FireflyIII\Events\UpdatedTransactionJournal;
@@ -64,10 +65,14 @@ class EventServiceProvider extends ServiceProvider
             // is a User related event.
             Login::class                       => [
                 'FireflyIII\Handlers\Events\UserEventHandler@checkSingleUserIsAdmin',
+                'FireflyIII\Handlers\Events\UserEventHandler@demoUserBackToEnglish',
 
             ],
             RequestedVersionCheckStatus::class => [
                 'FireflyIII\Handlers\Events\VersionCheckEventHandler@checkForUpdates',
+            ],
+            RequestedReportOnJournals::class   => [
+                'FireflyIII\Handlers\Events\AutomationHandler@reportJournals',
             ],
 
             // is a User related event.
@@ -101,18 +106,17 @@ class EventServiceProvider extends ServiceProvider
      * @codeCoverageIgnore
      * Register any events for your application.
      */
-    public function boot()
+    public function boot(): void
     {
         parent::boot();
         $this->registerCreateEvents();
     }
 
     /**
-     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     protected function registerCreateEvents(): void
     {
-        // move this routine to a filter
         // in case of repeated piggy banks and/or other problems.
         PiggyBank::created(
             function (PiggyBank $piggyBank) {
@@ -130,7 +134,7 @@ class EventServiceProvider extends ServiceProvider
                 $repository = app(UserRepositoryInterface::class);
                 $user       = $repository->findNull((int)$oauthClient->user_id);
                 if (null === $user) {
-                    Log::error('OAuth client generated but no user associated.');
+                    Log::info('OAuth client generated but no user associated.');
 
                     return;
                 }

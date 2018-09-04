@@ -23,7 +23,7 @@ declare(strict_types=1);
 namespace FireflyIII\Jobs;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Models\RuleGroup;
 use FireflyIII\TransactionRules\Processor;
 use FireflyIII\User;
@@ -39,15 +39,15 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
 {
     use InteractsWithQueue, SerializesModels;
 
-    /** @var Collection */
+    /** @var Collection Set of accounts */
     private $accounts;
-    /** @var Carbon */
+    /** @var Carbon The end date */
     private $endDate;
-    /** @var RuleGroup */
+    /** @var RuleGroup The rule group */
     private $ruleGroup;
-    /** @var Carbon */
+    /** @var Carbon The start date */
     private $startDate;
-    /** @var User */
+    /** @var User The user */
     private $user;
 
     /**
@@ -61,6 +61,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Get accounts.
+     *
      * @return Collection
      */
     public function getAccounts(): Collection
@@ -69,6 +71,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Set accounts.
+     *
      * @param Collection $accounts
      */
     public function setAccounts(Collection $accounts)
@@ -77,6 +81,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Get end date.
+     *
      * @return \Carbon\Carbon
      */
     public function getEndDate(): Carbon
@@ -85,6 +91,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Set end date.
+     *
      * @param Carbon $date
      */
     public function setEndDate(Carbon $date)
@@ -93,6 +101,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Get start date.
+     *
      * @return \Carbon\Carbon
      */
     public function getStartDate(): Carbon
@@ -101,6 +111,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Set start date.
+     *
      * @param Carbon $date
      */
     public function setStartDate(Carbon $date)
@@ -109,6 +121,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Get user.
+     *
      * @return User
      */
     public function getUser(): User
@@ -117,6 +131,8 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
     }
 
     /**
+     * Set user.
+     *
      * @param User $user
      */
     public function setUser(User $user)
@@ -156,14 +172,14 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
      *
      * @return Collection
      */
-    protected function collectJournals()
+    protected function collectJournals(): Collection
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setUser($this->user);
         $collector->setAccounts($this->accounts)->setRange($this->startDate, $this->endDate);
 
-        return $collector->getJournals();
+        return $collector->getTransactions();
     }
 
     /**
@@ -171,7 +187,7 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
      *
      * @return array
      */
-    protected function collectProcessors()
+    protected function collectProcessors(): array
     {
         // Find all rules belonging to this rulegroup
         $rules = $this->ruleGroup->rules()
@@ -184,7 +200,10 @@ class ExecuteRuleGroupOnExistingTransactions extends Job implements ShouldQueue
         // Create a list of processors for these rules
         return array_map(
             function ($rule) {
-                return Processor::make($rule);
+                /** @var Processor $processor */
+                $processor = app(Processor::class);
+                $processor->make($rule);
+                return $processor;
             },
             $rules->all()
         );

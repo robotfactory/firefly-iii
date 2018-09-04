@@ -39,13 +39,21 @@ use FireflyIII\Support\Import\Routine\Spectre\StageNewHandler;
 use Mockery;
 use Preferences;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class StageNewHandlerTest
  */
 class StageNewHandlerTest extends TestCase
 {
-
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
     // todo run() with zero logins and an existing customer (must be retrieved from Spectre).
     // todo run() with one login and an existing customer (must be retrieved from Spectre).
 
@@ -59,7 +67,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'sn_a_' . random_int(1, 1000);
+        $job->key           = 'sn_a_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -97,6 +105,7 @@ class StageNewHandlerTest extends TestCase
         // create new customer:
         $ncRequest->shouldReceive('setUser')->once();
         $ncRequest->shouldReceive('getCustomer')->once()->andReturn($fakeCustomer);
+        $ncRequest->shouldReceive('call')->once();
 
         // mock calls for repository:
         $repository->shouldReceive('setUser')->once();
@@ -125,7 +134,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'sn_a_' . random_int(1, 1000);
+        $job->key           = 'sn_a_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -178,7 +187,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'sn_a_' . random_int(1, 1000);
+        $job->key           = 'sn_a_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -247,7 +256,7 @@ class StageNewHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'sn_a_' . random_int(1, 1000);
+        $job->key           = 'sn_a_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';

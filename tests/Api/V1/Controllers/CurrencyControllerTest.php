@@ -42,11 +42,11 @@ class CurrencyControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         Passport::actingAs($this->user());
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
 
     }
 
@@ -63,7 +63,6 @@ class CurrencyControllerTest extends TestCase
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
-        //$userRepos->shouldReceive('setUser')->once();
 
         $userRepos->shouldReceive('hasRole')->once()->withArgs([Mockery::any(), 'owner'])->andReturn(true);
         $repository->shouldReceive('canDeleteCurrency')->once()->andReturn(true);
@@ -88,6 +87,7 @@ class CurrencyControllerTest extends TestCase
         $collection = TransactionCurrency::get();
         // mock stuff:
         $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
@@ -97,12 +97,13 @@ class CurrencyControllerTest extends TestCase
         $response = $this->get('/api/v1/currencies');
         $response->assertStatus(200);
         $response->assertJson(['data' => [],]);
-        $response->assertJson([
+        $response->assertJson(
+            [
                 'meta' => [
                     'pagination' => [
                         'total'        => $collection->count(),
                         'count'        => $collection->count(),
-                        'per_page'     => 100,
+                        'per_page'     => true, // depends on user preference.
                         'current_page' => 1,
                         'total_pages'  => 1,
                     ],
@@ -125,6 +126,7 @@ class CurrencyControllerTest extends TestCase
         // create stuff
         $currency   = TransactionCurrency::first();
         $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
@@ -142,6 +144,8 @@ class CurrencyControllerTest extends TestCase
     }
 
     /**
+     * Store new currency.
+     *
      * @covers \FireflyIII\Api\V1\Controllers\CurrencyController
      * @covers \FireflyIII\Api\V1\Requests\CurrencyRequest
      */
@@ -150,6 +154,7 @@ class CurrencyControllerTest extends TestCase
 
         $currency   = TransactionCurrency::first();
         $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
@@ -161,7 +166,7 @@ class CurrencyControllerTest extends TestCase
             'code'           => 'ABC',
             'symbol'         => 'A',
             'decimal_places' => 2,
-            'default'        => 'false',
+            'default'        => '0',
         ];
 
         // test API
@@ -173,13 +178,17 @@ class CurrencyControllerTest extends TestCase
     }
 
     /**
+     * Store new currency and make it default.
+     *
      * @covers \FireflyIII\Api\V1\Controllers\CurrencyController
      * @covers \FireflyIII\Api\V1\Requests\CurrencyRequest
      */
     public function testStoreWithDefault(): void
     {
-        $currency         = TransactionCurrency::first();
-        $repository       = $this->mock(CurrencyRepositoryInterface::class);
+        $currency   = TransactionCurrency::first();
+        $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
+
         $preference       = new Preference;
         $preference->data = 'EUR';
         // mock calls:
@@ -196,7 +205,7 @@ class CurrencyControllerTest extends TestCase
             'code'           => 'ABC',
             'symbol'         => 'A',
             'decimal_places' => 2,
-            'default'        => 'true',
+            'default'        => '1',
         ];
 
         // test API
@@ -208,6 +217,8 @@ class CurrencyControllerTest extends TestCase
     }
 
     /**
+     * Update currency.
+     *
      * @covers \FireflyIII\Api\V1\Controllers\CurrencyController
      * @covers \FireflyIII\Api\V1\Requests\CurrencyRequest
      */
@@ -215,6 +226,7 @@ class CurrencyControllerTest extends TestCase
     {
         $currency   = TransactionCurrency::first();
         $repository = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos  = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
@@ -226,7 +238,7 @@ class CurrencyControllerTest extends TestCase
             'code'           => 'ABC',
             'symbol'         => '$E',
             'decimal_places' => '2',
-            'default'        => 'false',
+            'default'        => '0',
         ];
 
         // test API
@@ -238,6 +250,8 @@ class CurrencyControllerTest extends TestCase
     }
 
     /**
+     * Update currency and make default.
+     *
      * @covers \FireflyIII\Api\V1\Controllers\CurrencyController
      * @covers \FireflyIII\Api\V1\Requests\CurrencyRequest
      */
@@ -245,6 +259,7 @@ class CurrencyControllerTest extends TestCase
     {
         $currency         = TransactionCurrency::first();
         $repository       = $this->mock(CurrencyRepositoryInterface::class);
+        $userRepos        = $this->mock(UserRepositoryInterface::class);
         $preference       = new Preference;
         $preference->data = 'EUR';
 
@@ -262,7 +277,7 @@ class CurrencyControllerTest extends TestCase
             'code'           => 'ABC',
             'symbol'         => '$E',
             'decimal_places' => '2',
-            'default'        => 'true',
+            'default'        => '1',
         ];
 
         // test API

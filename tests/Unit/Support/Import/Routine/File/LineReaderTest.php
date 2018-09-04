@@ -32,6 +32,7 @@ use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Support\Import\Routine\File\LineReader;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class LineReaderTest
@@ -39,13 +40,22 @@ use Tests\TestCase;
 class LineReaderTest extends TestCase
 {
     /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+    /**
      * @covers \FireflyIII\Support\Import\Routine\File\LineReader
      */
     public function testGetLines(): void
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'linerA' . random_int(1, 1000);
+        $job->key           = 'linerA' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';

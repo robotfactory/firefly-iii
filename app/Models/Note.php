@@ -22,13 +22,24 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Class Note.
+ *
+ * @property int    $id
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property string $text
+ * @property string $title
+ * @property int    $noteable_id
  */
 class Note extends Model
 {
+    use SoftDeletes;
     /**
      * The attributes that should be casted to native types.
      *
@@ -40,7 +51,7 @@ class Note extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['title', 'text', 'noteable_id', 'noteable_type'];
 
     /**
@@ -48,7 +59,7 @@ class Note extends Model
      *
      * Get all of the owning noteable models.
      */
-    public function noteable()
+    public function noteable(): MorphTo
     {
         return $this->morphTo();
     }
@@ -56,7 +67,7 @@ class Note extends Model
     /**
      * @param $value
      */
-    public function setTextAttribute($value)
+    public function setTextAttribute($value): void
     {
         $this->attributes['text'] = e($value);
     }

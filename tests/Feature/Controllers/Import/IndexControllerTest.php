@@ -26,6 +26,7 @@ use FireflyIII\Import\Prerequisites\BunqPrerequisites;
 use FireflyIII\Import\Prerequisites\FakePrerequisites;
 use FireflyIII\Import\Prerequisites\FilePrerequisites;
 use FireflyIII\Import\Prerequisites\SpectrePrerequisites;
+use FireflyIII\Import\Prerequisites\YnabPrerequisites;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Repositories\User\UserRepositoryInterface;
@@ -45,10 +46,10 @@ class IndexControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
@@ -62,6 +63,7 @@ class IndexControllerTest extends TestCase
         $fakePrerequisites    = $this->mock(FakePrerequisites::class);
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
 
         // fake job:
         $importJob           = new ImportJob;
@@ -69,20 +71,55 @@ class IndexControllerTest extends TestCase
         $importJob->key      = 'fake_job_1';
 
         // mock calls:
+        $ynabPrerequisites->shouldReceive('setUser')->once();
         $fakePrerequisites->shouldReceive('setUser')->once();
         $bunqPrerequisites->shouldReceive('setUser')->once();
         $spectrePrerequisites->shouldReceive('setUser')->once();
         $fakePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
         $bunqPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
         $spectrePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
 
         $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->once();
 
         $this->be($this->user());
         $response = $this->get(route('import.create', ['bad']));
+        $response->assertStatus(404);
+    }
+
+    /**
+     * @covers \FireflyIII\Http\Controllers\Import\IndexController
+     */
+    public function testCreateDemoUser(): void
+    {
+        // mock stuff:
+        $repository           = $this->mock(ImportJobRepositoryInterface::class);
+        $userRepository       = $this->mock(UserRepositoryInterface::class);
+        $fakePrerequisites    = $this->mock(FakePrerequisites::class);
+        $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
+        $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
+
+        // fake job:
+        $importJob           = new ImportJob;
+        $importJob->provider = 'spectre';
+        $importJob->key      = 'fake_job_1';
+
+        // mock calls:
+        $ynabPrerequisites->shouldReceive('setUser')->times(2);
+        $fakePrerequisites->shouldReceive('setUser')->times(2);
+        $bunqPrerequisites->shouldReceive('setUser')->times(2);
+        $spectrePrerequisites->shouldReceive('setUser')->times(2);
+        $fakePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $bunqPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $spectrePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true)->times(3);
+
+        $this->be($this->user());
+        $response = $this->get(route('import.create', ['spectre']));
         $response->assertStatus(302);
-        // expect a redirect to index
-        $response->assertSessionHas('warning', 'Firefly III cannot create a job for the "bad"-provider.');
         $response->assertRedirect(route('import.index'));
     }
 
@@ -98,17 +135,30 @@ class IndexControllerTest extends TestCase
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
 
         // fake job:
         $importJob           = new ImportJob;
         $importJob->provider = 'fake';
         $importJob->key      = 'fake_job_1';
+        $importJob->user_id  = 1;
 
         // mock calls
-        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true)->once();
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true)->times(3);
+
+        $bunqPrerequisites->shouldReceive('setUser')->times(2);
+        $bunqPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(false);
+
+        $spectrePrerequisites->shouldReceive('setUser')->times(2);
+        $spectrePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(false);
+
+        $ynabPrerequisites->shouldReceive('setUser')->times(2);
+        $ynabPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(false);
+
         $repository->shouldReceive('create')->withArgs(['fake'])->andReturn($importJob);
-        $fakePrerequisites->shouldReceive('isComplete')->twice()->andReturn(false);
-        $fakePrerequisites->shouldReceive('setUser')->twice();
+
+        $fakePrerequisites->shouldReceive('isComplete')->times(3)->andReturn(false);
+        $fakePrerequisites->shouldReceive('setUser')->times(3);
 
 
         $this->be($this->user());
@@ -130,19 +180,33 @@ class IndexControllerTest extends TestCase
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
 
         // fake job:
         $importJob           = new ImportJob;
         $importJob->provider = 'fake';
         $importJob->key      = 'fake_job_2';
+        $importJob->user_id  = 1;
 
         // mock call:
-        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true)->once();
+
+        $fakePrerequisites->shouldReceive('isComplete')->times(3)->andReturn(true);
+        $fakePrerequisites->shouldReceive('setUser')->times(3);
+
+        $bunqPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $bunqPrerequisites->shouldReceive('setUser')->times(2);
+
+        $spectrePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $spectrePrerequisites->shouldReceive('setUser')->times(2);
+
+        $ynabPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $ynabPrerequisites->shouldReceive('setUser')->times(2);
+
+
         $repository->shouldReceive('create')->withArgs(['fake'])->andReturn($importJob);
-        $fakePrerequisites->shouldReceive('isComplete')->twice()->andReturn(true);
-        $fakePrerequisites->shouldReceive('setUser')->twice();
         $repository->shouldReceive('setStatus')->withArgs([Mockery::any(), 'has_prereq'])->andReturn($importJob)->once();
 
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true)->times(3);
 
         $this->be($this->user());
         $response = $this->get(route('import.create', ['fake']));
@@ -163,24 +227,27 @@ class IndexControllerTest extends TestCase
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
 
         // fake job:
         $importJob           = new ImportJob;
         $importJob->provider = 'file';
         $importJob->key      = 'file_job_1';
+        $importJob->user_id  = 1;
 
         // mock calls
-        $fakePrerequisites->shouldReceive('setUser')->once();
-        $bunqPrerequisites->shouldReceive('setUser')->once();
-        $spectrePrerequisites->shouldReceive('setUser')->once();
+        $fakePrerequisites->shouldReceive('setUser')->times(2);
+        $bunqPrerequisites->shouldReceive('setUser')->times(2);
+        $spectrePrerequisites->shouldReceive('setUser')->times(2);
+        $ynabPrerequisites->shouldReceive('setUser')->times(2);
 
-        $fakePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
-        $bunqPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
-        $spectrePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $fakePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $bunqPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $spectrePrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->times(2)->andReturn(true);
 
-        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->once();
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false)->times(3);
         $repository->shouldReceive('create')->withArgs(['file'])->andReturn($importJob);
-
         $repository->shouldReceive('setStatus')->withArgs([Mockery::any(), 'has_prereq'])->andReturn($importJob)->once();
 
 
@@ -203,10 +270,11 @@ class IndexControllerTest extends TestCase
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'dc_' . random_int(1, 1000);
+        $job->key           = 'dc_' . random_int(1, 10000);
         $job->status        = 'ready_to_run';
         $job->stage         = 'go-for-import';
         $job->provider      = 'file';
@@ -221,11 +289,24 @@ class IndexControllerTest extends TestCase
         ];
 
         $repository->shouldReceive('getConfiguration')->andReturn($fakeConfig)->once();
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->once()->andReturn(false);
+
+        $fakePrerequisites->shouldReceive('setUser')->times(1);
+        $bunqPrerequisites->shouldReceive('setUser')->times(1);
+        $spectrePrerequisites->shouldReceive('setUser')->times(1);
+        $ynabPrerequisites->shouldReceive('setUser')->times(1);
+        //$filePrerequisites->shouldReceive('setUser')->times(1);
+
+        $fakePrerequisites->shouldReceive('isComplete')->times(1)->andReturn(true);
+        $bunqPrerequisites->shouldReceive('isComplete')->times(1)->andReturn(true);
+        $spectrePrerequisites->shouldReceive('isComplete')->times(1)->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->times(1)->andReturn(true);
+        //$filePrerequisites->shouldReceive('isComplete')->times(1)->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('import.job.download', [$job->key]));
         $response->assertStatus(200);
-        $response->assertExactJson(['column-mapping-config' => [], 'delimiter' => ',', 'hi' => 'there', 1 => true]);
+        $response->assertExactJson(['column-mapping-config' => ['a', 'b', 'c'], 'delimiter' => ',', 'hi' => 'there', 1 => true]);
     }
 
     /**
@@ -241,16 +322,22 @@ class IndexControllerTest extends TestCase
         $bunqPrerequisites    = $this->mock(BunqPrerequisites::class);
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
+        $repository           = $this->mock(ImportJobRepositoryInterface::class);
 
         // call methods:
         $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(false);
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(false);
 
         $fakePrerequisites->shouldReceive('setUser')->once();
         $bunqPrerequisites->shouldReceive('setUser')->once();
         $spectrePrerequisites->shouldReceive('setUser')->once();
+        $ynabPrerequisites->shouldReceive('setUser')->once();
+
         $fakePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
         $bunqPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
         $spectrePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
 
         $response = $this->get(route('import.index'));
         $response->assertStatus(200);
@@ -270,13 +357,23 @@ class IndexControllerTest extends TestCase
         $spectrePrerequisites = $this->mock(SpectrePrerequisites::class);
         $filePrerequisites    = $this->mock(FilePrerequisites::class);
         $userRepository       = $this->mock(UserRepositoryInterface::class);
-
+        $ynabPrerequisites    = $this->mock(YnabPrerequisites::class);
+        $repository           = $this->mock(ImportJobRepositoryInterface::class);
 
         // call methods:
         $fakePrerequisites->shouldReceive('setUser')->once();
-        $fakePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
-        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true);
+        $bunqPrerequisites->shouldReceive('setUser')->once();
+        $spectrePrerequisites->shouldReceive('setUser')->once();
+        $ynabPrerequisites->shouldReceive('setUser')->once();
 
+        $fakePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $bunqPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $spectrePrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+        $ynabPrerequisites->shouldReceive('isComplete')->once()->andReturn(true);
+
+
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'demo'])->andReturn(true);
+        $userRepository->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->andReturn(false);
 
         $response = $this->get(route('import.index'));
         $response->assertStatus(200);

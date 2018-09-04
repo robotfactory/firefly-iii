@@ -26,6 +26,7 @@ namespace Tests\Feature\Controllers\Import;
 use FireflyIII\Import\JobConfiguration\FakeJobConfiguration;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\MessageBag;
 use Log;
@@ -40,10 +41,10 @@ class JobConfigurationControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
@@ -53,7 +54,7 @@ class JobConfigurationControllerTest extends TestCase
     {
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Afake_job_' . random_int(1, 1000);
+        $job->key       = '1Afake_job_' . random_int(1, 10000);
         $job->status    = 'has_prereq';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -62,6 +63,9 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
 
         // mock calls:
         $configurator->shouldReceive('setImportJob')->once();
@@ -85,7 +89,7 @@ class JobConfigurationControllerTest extends TestCase
     {
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Bfake_job_' . random_int(1, 1000);
+        $job->key       = '2Bfake_job_' . random_int(1, 10000);
         $job->status    = 'some_bad_state';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -94,8 +98,10 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
 
-        // mock calls:
+
+
 
         $this->be($this->user());
         $response = $this->get(route('import.job.configuration.index', [$job->key]));
@@ -111,7 +117,7 @@ class JobConfigurationControllerTest extends TestCase
     {
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Cfake_job_' . random_int(1, 1000);
+        $job->key       = '3Cfake_job_' . random_int(1, 10000);
         $job->status    = 'has_prereq';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -120,11 +126,12 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $configurator->shouldReceive('setImportJob')->once();
         $configurator->shouldReceive('configurationComplete')->once()->andReturn(true);
-        $repository->shouldReceive('updateStatus')->withArgs([Mockery::any(), 'ready_to_run']);
+        $repository->shouldReceive('setStatus')->withArgs([Mockery::any(), 'ready_to_run']);
 
         $this->be($this->user());
         $response = $this->get(route('import.job.configuration.index', [$job->key]));
@@ -140,7 +147,7 @@ class JobConfigurationControllerTest extends TestCase
 
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Dfake_job_' . random_int(1, 1000);
+        $job->key       = '4Dfake_job_' . random_int(1, 10000);
         $job->status    = 'has_prereq';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -152,6 +159,7 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $configurator->shouldReceive('setImportJob')->once();
@@ -174,7 +182,7 @@ class JobConfigurationControllerTest extends TestCase
 
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Ffake_job_' . random_int(1, 1000);
+        $job->key       = '5Ffake_job_' . random_int(1, 10000);
         $job->status    = 'some_bad_state';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -186,6 +194,7 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
 
         // call thing.
         $this->be($this->user());
@@ -203,7 +212,7 @@ class JobConfigurationControllerTest extends TestCase
 
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Efake_job_' . random_int(1, 1000);
+        $job->key       = '6Efake_job_' . random_int(1, 10000);
         $job->status    = 'has_prereq';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -212,11 +221,13 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
+
 
         // mock calls:
         $configurator->shouldReceive('setImportJob')->once();
         $configurator->shouldReceive('configurationComplete')->once()->andReturn(true);
-        $repository->shouldReceive('updateStatus')->withArgs([Mockery::any(), 'ready_to_run']);
+        $repository->shouldReceive('setStatus')->withArgs([Mockery::any(), 'ready_to_run']);
 
         // call thing.
         $this->be($this->user());
@@ -233,7 +244,7 @@ class JobConfigurationControllerTest extends TestCase
         $file           = UploadedFile::fake()->image('avatar.jpg');
         $job            = new ImportJob;
         $job->user_id   = $this->user()->id;
-        $job->key       = 'Dfake_job_' . random_int(1, 1000);
+        $job->key       = '7Dfake_job_' . random_int(1, 10000);
         $job->status    = 'has_prereq';
         $job->provider  = 'fake';
         $job->file_type = '';
@@ -245,6 +256,7 @@ class JobConfigurationControllerTest extends TestCase
         // mock repositories and configuration handling classes:
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
         $configurator = $this->mock(FakeJobConfiguration::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
 
         // mock calls:
         $configurator->shouldReceive('setImportJob')->once();

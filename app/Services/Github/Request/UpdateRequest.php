@@ -26,7 +26,10 @@ namespace FireflyIII\Services\Github\Request;
 use Exception;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Services\Github\Object\Release;
-use Requests;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use Log;
+use RuntimeException;
 use SimpleXMLElement;
 
 /**
@@ -41,30 +44,38 @@ class UpdateRequest implements GithubRequest
      *
      * @throws FireflyException
      */
-    public function call()
+    public function call(): void
     {
         $uri = 'https://github.com/firefly-iii/firefly-iii/releases.atom';
+        Log::debug(sprintf('Going to call %s', $uri));
         try {
-            $response = Requests::get($uri);
-        } catch (Exception $e) {
+            $client = new Client();
+            $res    = $client->request('GET', $uri);
+        } catch (GuzzleException|Exception $e) {
             throw new FireflyException(sprintf('Response error from Github: %s', $e->getMessage()));
         }
 
-        if ($response->status_code !== 200) {
-            throw new FireflyException(sprintf('Returned code %d, error: %s', $response->status_code, $response->body));
+        if (200 !== $res->getStatusCode()) {
+            throw new FireflyException(sprintf('Returned code %d.', $res->getStatusCode()));
         }
-
-        $releaseXml = new SimpleXMLElement($response->body, LIBXML_NOCDATA);
+        try {
+            $releaseXml = new SimpleXMLElement($res->getBody()->getContents(), LIBXML_NOCDATA);
+        } catch (RuntimeException $e) {
+            Log::error(sprintf('Could not get body from github updat result: %s', $e->getMessage()));
+            $releaseXml = new SimpleXMLElement('');
+        }
 
         //fetch the products for each category
         if (isset($releaseXml->entry)) {
+            Log::debug(sprintf('Count of entries is: %d', \count($releaseXml->entry)));
             foreach ($releaseXml->entry as $entry) {
-                $array            = [
+                $array = [
                     'id'      => (string)$entry->id,
                     'updated' => (string)$entry->updated,
                     'title'   => (string)$entry->title,
                     'content' => (string)$entry->content,
                 ];
+                Log::debug(sprintf('Found version %s', $entry->title));
                 $this->releases[] = new Release($array);
             }
         }

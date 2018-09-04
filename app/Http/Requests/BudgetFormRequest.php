@@ -22,23 +22,28 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Requests;
 
-use FireflyIII\Repositories\Budget\BudgetRepositoryInterface;
+use FireflyIII\Models\Budget;
 
 /**
- * @codeCoverageIgnore
  * Class BudgetFormRequest.
+ *
+ * @codeCoverageIgnore
  */
 class BudgetFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         return auth()->check();
     }
 
     /**
+     * Returns the data required by the controller.
+     *
      * @return array
      */
     public function getBudgetData(): array
@@ -50,16 +55,19 @@ class BudgetFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
-        // fixed
-        /** @var BudgetRepositoryInterface $repository */
-        $repository = app(BudgetRepositoryInterface::class);
-        $nameRule   = 'required|between:1,100|uniqueObjectForUser:budgets,name';
-        if (null !== $repository->findNull((int)$this->get('id'))) {
-            $nameRule = 'required|between:1,100|uniqueObjectForUser:budgets,name,' . (int)$this->get('id');
+        $nameRule = 'required|between:1,100|uniqueObjectForUser:budgets,name';
+
+        /** @var Budget $budget */
+        $budget = $this->route()->parameter('budget');
+
+        if (null !== $budget) {
+            $nameRule = 'required|between:1,100|uniqueObjectForUser:budgets,name,' . $budget->id;
         }
 
         return [

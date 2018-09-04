@@ -22,22 +22,45 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Crypt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class TransactionJournalLink.
+ *
+ * @property int                $id
+ * @property Carbon             $created_at
+ * @property Carbon             $updated_at
+ * @property string             $comment
+ * @property TransactionJournal $source
+ * @property TransactionJournal $destination
+ * @property LinkType           $linkType
+ * @property int                $link_type_id
+ * @property int                $source_id
+ * @property int                $destination_id
  */
 class TransactionJournalLink extends Model
 {
     /**
-     * @var string
+     * The attributes that should be casted to native types.
+     *
+     * @var array
      */
+    protected $casts
+        = [
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+        ];
+    /** @var string The table to store the data in */
     protected $table = 'journal_links';
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return mixed
@@ -63,9 +86,9 @@ class TransactionJournalLink extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function destination()
+    public function destination(): BelongsTo
     {
         return $this->belongsTo(TransactionJournal::class, 'destination_id');
     }
@@ -88,7 +111,7 @@ class TransactionJournalLink extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function linkType(): BelongsTo
     {
@@ -99,7 +122,7 @@ class TransactionJournalLink extends Model
      * @codeCoverageIgnore
      * Get all of the notes.
      */
-    public function notes()
+    public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'noteable');
     }
@@ -123,9 +146,9 @@ class TransactionJournalLink extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function source()
+    public function source(): BelongsTo
     {
         return $this->belongsTo(TransactionJournal::class, 'source_id');
     }

@@ -27,6 +27,7 @@ use FireflyIII\Models\RuleGroup;
 use FireflyIII\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Log;
 
 /**
  * Class RuleGroupRepository.
@@ -35,6 +36,16 @@ class RuleGroupRepository implements RuleGroupRepositoryInterface
 {
     /** @var User */
     private $user;
+
+    /**
+     * Constructor.
+     */
+    public function __construct()
+    {
+        if ('testing' === env('APP_ENV')) {
+            Log::warning(sprintf('%s should not be instantiated in the TEST environment!', \get_class($this)));
+        }
+    }
 
     /**
      * @return int
@@ -77,13 +88,13 @@ class RuleGroupRepository implements RuleGroupRepositoryInterface
     /**
      * @param int $ruleGroupId
      *
-     * @return RuleGroup
+     * @return RuleGroup|null
      */
-    public function find(int $ruleGroupId): RuleGroup
+    public function find(int $ruleGroupId): ?RuleGroup
     {
         $group = $this->user->ruleGroups()->find($ruleGroupId);
         if (null === $group) {
-            return new RuleGroup;
+            return null;
         }
 
         return $group;
@@ -265,7 +276,7 @@ class RuleGroupRepository implements RuleGroupRepositoryInterface
     /**
      * @param User $user
      */
-    public function setUser(User $user)
+    public function setUser(User $user): void
     {
         $this->user = $user;
     }

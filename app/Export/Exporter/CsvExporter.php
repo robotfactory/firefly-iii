@@ -30,13 +30,18 @@ use Storage;
 
 /**
  * Class CsvExporter.
+ *
+ * @codeCoverageIgnore
+ * @deprecated
  */
 class CsvExporter extends BasicExporter implements ExporterInterface
 {
-    /** @var string */
+    /** @var string Filename */
     private $fileName;
 
     /**
+     * Get file name.
+     *
      * @return string
      */
     public function getFileName(): string
@@ -45,6 +50,8 @@ class CsvExporter extends BasicExporter implements ExporterInterface
     }
 
     /**
+     * Run collector.
+     *
      * @return bool
      *
      */
@@ -83,6 +90,9 @@ class CsvExporter extends BasicExporter implements ExporterInterface
         return true;
     }
 
+    /**
+     * Make a temp file.
+     */
     private function tempFile()
     {
         $this->fileName = $this->job->key . '-records.csv';

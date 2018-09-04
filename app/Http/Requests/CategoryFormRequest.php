@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Requests;
 
-use FireflyIII\Repositories\Category\CategoryRepositoryInterface;
+use FireflyIII\Models\Category;
 
 /**
  * Class CategoryFormRequest.
@@ -30,15 +30,19 @@ use FireflyIII\Repositories\Category\CategoryRepositoryInterface;
 class CategoryFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Get information for the controller.
+     *
      * @return array
      */
     public function getCategoryData(): array
@@ -49,15 +53,18 @@ class CategoryFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
-        /** @var CategoryRepositoryInterface $repository */
-        $repository = app(CategoryRepositoryInterface::class);
-        $nameRule   = 'required|between:1,100|uniqueObjectForUser:categories,name';
-        if (null !== $repository->findNull($this->integer('id'))) {
-            $nameRule = 'required|between:1,100|uniqueObjectForUser:categories,name,' . $this->integer('id');
+        $nameRule = 'required|between:1,100|uniqueObjectForUser:categories,name';
+        /** @var Category $category */
+        $category = $this->route()->parameter('category');
+
+        if (null !== $category) {
+            $nameRule = 'required|between:1,100|uniqueObjectForUser:categories,name,' . $category->id;
         }
 
         // fixed

@@ -23,17 +23,25 @@ declare(strict_types=1);
 namespace FireflyIII\Models;
 
 use Crypt;
+use FireflyIII\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use FireflyIII\User;
-use FireflyIII\Models\Transaction;
-use FireflyIII\Models\TransactionJournal;
-use FireflyIII\Models\BudgetLimit;
 
 /**
  * Class Budget.
+ *
+ * @property int         $id
+ * @property string      $name
+ * @property bool        $active
+ * @property int         $user_id
+ * @property-read string $email
+ * @property bool        encrypted
+ * @property Collection  budgetlimits
  */
 class Budget extends Model
 {
@@ -52,50 +60,27 @@ class Budget extends Model
             'active'     => 'boolean',
             'encrypted'  => 'boolean',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['user_id', 'name', 'active'];
-    /** @var array */
+    /** @var array Hidden from view */
     protected $hidden = ['encrypted'];
 
     /**
-     * @param array $fields
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
      *
-     * @deprecated
-     * @return Budget
-     */
-    public static function firstOrCreateEncrypted(array $fields)
-    {
-        // everything but the name:
-        $query  = self::orderBy('id');
-        $search = $fields;
-        unset($search['name']);
-        foreach ($search as $name => $value) {
-            $query->where($name, $value);
-        }
-        $set = $query->get(['budgets.*']);
-        /** @var Budget $budget */
-        foreach ($set as $budget) {
-            if ($budget->name === $fields['name']) {
-                return $budget;
-            }
-        }
-        // create it!
-        $budget = self::create($fields);
-
-        return $budget;
-    }
-
-    /**
      * @param string $value
      *
      * @return Budget
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): Budget
     {
         if (auth()->check()) {
             $budgetId = (int)$value;
-            $budget   = auth()->user()->budgets()->find($budgetId);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var Budget $budget */
+            $budget = $user->budgets()->find($budgetId);
             if (null !== $budget) {
                 return $budget;
             }
@@ -105,9 +90,9 @@ class Budget extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function budgetlimits()
+    public function budgetlimits(): HasMany
     {
         return $this->hasMany(BudgetLimit::class);
     }
@@ -117,10 +102,10 @@ class Budget extends Model
      *
      * @param $value
      *
-     * @return string
+     * @return string|null
      * @throws \Illuminate\Contracts\Encryption\DecryptException
      */
-    public function getNameAttribute($value)
+    public function getNameAttribute($value): ?string
     {
         if ($this->encrypted) {
             return Crypt::decrypt($value);
@@ -136,7 +121,7 @@ class Budget extends Model
      *
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setNameAttribute($value)
+    public function setNameAttribute($value): void
     {
         $encrypt                       = config('firefly.encryption');
         $this->attributes['name']      = $encrypt ? Crypt::encrypt($value) : $value;
@@ -145,18 +130,18 @@ class Budget extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function transactionJournals()
+    public function transactionJournals(): BelongsToMany
     {
         return $this->belongsToMany(TransactionJournal::class, 'budget_transaction_journal', 'budget_id');
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function transactions()
+    public function transactions(): BelongsToMany
     {
         return $this->belongsToMany(Transaction::class, 'budget_transaction', 'budget_id');
     }

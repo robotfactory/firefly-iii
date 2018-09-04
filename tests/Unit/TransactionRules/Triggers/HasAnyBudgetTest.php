@@ -22,8 +22,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\TransactionRules\Triggers;
 
-use FireflyIII\Models\TransactionJournal;
+use FireflyIII\Models\Transaction;
 use FireflyIII\TransactionRules\Triggers\HasAnyBudget;
+use Log;
 use Tests\TestCase;
 
 /**
@@ -32,59 +33,75 @@ use Tests\TestCase;
 class HasAnyBudgetTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget
      */
     public function testTriggered(): void
     {
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
-        $budget  = $journal->user->budgets()->first();
-        $journal->budgets()->detach();
-        $journal->budgets()->save($budget);
+        $withdrawal = $this->getRandomWithdrawal();
 
-        $this->assertEquals(1, $journal->budgets()->count());
+        $budget = $withdrawal->user->budgets()->first();
+        $withdrawal->budgets()->detach();
+        $withdrawal->budgets()->save($budget);
+
+        $this->assertEquals(1, $withdrawal->budgets()->count());
         $trigger = HasAnyBudget::makeFromStrings('', false);
-        $result  = $trigger->triggered($journal);
+        $result  = $trigger->triggered($withdrawal);
         $this->assertTrue($result);
+
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget
      */
     public function testTriggeredNot(): void
     {
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
-        $journal->budgets()->detach();
-        $this->assertEquals(0, $journal->budgets()->count());
+        $withdrawal = $this->getRandomWithdrawal();
+        $withdrawal->budgets()->detach();
+        $this->assertEquals(0, $withdrawal->budgets()->count());
+
+        // also detach all transactions:
+        /** @var Transaction $transaction */
+        foreach ($withdrawal->transactions()->get() as $transaction) {
+            $transaction->budgets()->detach();
+        }
+
         $trigger = HasAnyBudget::makeFromStrings('', false);
-        $result  = $trigger->triggered($journal);
+        $result  = $trigger->triggered($withdrawal);
         $this->assertFalse($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget
      */
     public function testTriggeredTransactions(): void
     {
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
-        $budget  = $journal->user->budgets()->first();
-        $journal->budgets()->detach();
-        $this->assertEquals(0, $journal->budgets()->count());
+        Log::debug('Now in testTriggeredTransactions()');
+        $withdrawal = $this->getRandomWithdrawal();
+
+        $budget = $withdrawal->user->budgets()->first();
+        Log::debug(sprintf('First budget is %d ("%s")', $budget->id, $budget->name));
+        $withdrawal->budgets()->detach();
+        $this->assertEquals(0, $withdrawal->budgets()->count());
+        Log::debug('Survived the assumption.');
 
         // append to transaction
-        foreach ($journal->transactions()->get() as $index => $transaction) {
+        Log::debug('Do transaction loop.');
+        foreach ($withdrawal->transactions()->get() as $index => $transaction) {
+            Log::debug(sprintf('Now at index #%d, transaction #%d', $index, $transaction->id));
             $transaction->budgets()->detach();
             if (0 === $index) {
+                Log::debug('Index is zero, attach budget.');
                 $transaction->budgets()->save($budget);
             }
         }
-
+        Log::debug('Done with loop, make trigger');
         $trigger = HasAnyBudget::makeFromStrings('', false);
-        $result  = $trigger->triggered($journal);
+        $result  = $trigger->triggered($withdrawal);
         $this->assertTrue($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\HasAnyBudget
      */
     public function testWillMatchEverything(): void
     {

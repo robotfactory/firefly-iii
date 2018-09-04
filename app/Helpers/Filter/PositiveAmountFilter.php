@@ -33,10 +33,14 @@ use Log;
  *
  * This filter removes transactions with either a positive amount ($parameters = 1) or a negative amount
  * ($parameter = -1). This is helpful when a Collection has you with both transactions in a journal.
+ *
+ * @codeCoverageIgnore
  */
 class PositiveAmountFilter implements FilterInterface
 {
     /**
+     * See class description.
+     *
      * @param Collection $set
      *
      * @return Collection

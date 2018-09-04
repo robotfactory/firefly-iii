@@ -22,33 +22,45 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers\Json;
 
-use Amount;
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
+use FireflyIII\Helpers\Report\NetWorthInterface;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Models\Account;
 use FireflyIII\Models\AccountType;
 use FireflyIII\Models\Transaction;
+use FireflyIII\Models\TransactionCurrency;
 use FireflyIII\Models\TransactionType;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Repositories\Bill\BillRepositoryInterface;
 use FireflyIII\Repositories\Budget\BudgetRepositoryInterface;
 use FireflyIII\Repositories\Currency\CurrencyRepositoryInterface;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\RequestInformation;
+use Illuminate\Http\JsonResponse;
+use Log;
 
 /**
  * Class BoxController.
  */
 class BoxController extends Controller
 {
+    use RequestInformation;
+
     /**
+     * How much money user has available.
+     *
      * @param BudgetRepositoryInterface $repository
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function available(BudgetRepositoryInterface $repository)
+    public function available(BudgetRepositoryInterface $repository): JsonResponse
     {
+        /** @var Carbon $start */
         $start = session('start', Carbon::now()->startOfMonth());
+        /** @var Carbon $end */
         $end   = session('end', Carbon::now()->endOfMonth());
         $today = new Carbon;
         $cache = new CacheProperties;
@@ -92,15 +104,22 @@ class BoxController extends Controller
         return response()->json($return);
     }
 
+
     /**
+     * Current total balance.
+     *
      * @param CurrencyRepositoryInterface $repository
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function balance(CurrencyRepositoryInterface $repository)
+    public function balance(CurrencyRepositoryInterface $repository): JsonResponse
     {
         // Cache result, return cache if present.
+        /** @var Carbon $start */
         $start = session('start', Carbon::now()->startOfMonth());
+        /** @var Carbon $end */
         $end   = session('end', Carbon::now()->endOfMonth());
         $cache = new CacheProperties;
         $cache->addProperty($start);
@@ -115,12 +134,12 @@ class BoxController extends Controller
         $sums     = [];
 
         // collect income of user:
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAllAssetAccounts()->setRange($start, $end)
                   ->setTypes([TransactionType::DEPOSIT])
                   ->withOpposingAccount();
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         /** @var Transaction $transaction */
         foreach ($set as $transaction) {
             $currencyId           = (int)$transaction->transaction_currency_id;
@@ -131,12 +150,12 @@ class BoxController extends Controller
         }
 
         // collect expenses
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAllAssetAccounts()->setRange($start, $end)
                   ->setTypes([TransactionType::WITHDRAWAL])
                   ->withOpposingAccount();
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         /** @var Transaction $transaction */
         foreach ($set as $transaction) {
             $currencyId            = (int)$transaction->transaction_currency_id;
@@ -147,11 +166,18 @@ class BoxController extends Controller
         }
 
         // format amounts:
-        foreach ($sums as $currencyId => $amount) {
+        $keys = array_keys($sums);
+        foreach ($keys as $currencyId) {
             $currency              = $repository->findNull($currencyId);
-            $sums[$currencyId]     = Amount::formatAnything($currency, $sums[$currencyId], false);
-            $incomes[$currencyId]  = Amount::formatAnything($currency, $incomes[$currencyId] ?? '0', false);
-            $expenses[$currencyId] = Amount::formatAnything($currency, $expenses[$currencyId] ?? '0', false);
+            $sums[$currencyId]     = app('amount')->formatAnything($currency, $sums[$currencyId], false);
+            $incomes[$currencyId]  = app('amount')->formatAnything($currency, $incomes[$currencyId] ?? '0', false);
+            $expenses[$currencyId] = app('amount')->formatAnything($currency, $expenses[$currencyId] ?? '0', false);
+        }
+        if (0 === \count($sums)) {
+            $currency                = app('amount')->getDefaultCurrency();
+            $sums[$currency->id]     = app('amount')->formatAnything($currency, '0', false);
+            $incomes[$currency->id]  = app('amount')->formatAnything($currency, '0', false);
+            $expenses[$currency->id] = app('amount')->formatAnything($currency, '0', false);
         }
 
         $response = [
@@ -161,20 +187,26 @@ class BoxController extends Controller
             'size'     => \count($sums),
         ];
 
+
         $cache->store($response);
 
         return response()->json($response);
     }
 
+
     /**
+     * Bills to pay and paid.
+     *
      * @param BillRepositoryInterface $repository
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function bills(BillRepositoryInterface $repository)
+    public function bills(BillRepositoryInterface $repository): JsonResponse
     {
+        /** @var Carbon $start */
         $start = session('start', Carbon::now()->startOfMonth());
-        $end   = session('end', Carbon::now()->endOfMonth());
+        /** @var Carbon $end */
+        $end = session('end', Carbon::now()->endOfMonth());
 
         $cache = new CacheProperties;
         $cache->addProperty($start);
@@ -201,78 +233,62 @@ class BoxController extends Controller
         return response()->json($return);
     }
 
+
     /**
-     * @param AccountRepositoryInterface  $repository
+     * Total user net worth.
      *
-     * @param CurrencyRepositoryInterface $currencyRepos
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function netWorth(AccountRepositoryInterface $repository, CurrencyRepositoryInterface $currencyRepos)
+    public function netWorth(): JsonResponse
     {
-        $date = new Carbon(date('Y-m-d')); // needed so its per day.
-        /** @var Carbon $start */
-        $start = session('start', Carbon::now()->startOfMonth());
-        /** @var Carbon $end */
-        $end = session('end', Carbon::now()->endOfMonth());
+        $date = Carbon::create()->startOfDay();
 
         // start and end in the future? use $end
-        if ($start->greaterThanOrEqualTo($date) && $end->greaterThanOrEqualTo($date)) {
-            $date = $end;
+        if ($this->notInSessionRange($date)) {
+            /** @var Carbon $date */
+            $date = session('end', Carbon::now()->endOfMonth());
         }
-        // start and end in the past? use $end
-        if ($start->lessThanOrEqualTo($date) && $end->lessThanOrEqualTo($date)) {
-            $date = $end;
-        }
-        // start in the past, end in the future? use $date
-        $cache = new CacheProperties;
-        $cache->addProperty($date);
-        $cache->addProperty('box-net-worth');
-        if ($cache->has()) {
-            return response()->json($cache->get()); // @codeCoverageIgnore
-        }
-        $netWorth = [];
-        $accounts = $repository->getActiveAccountsByType([AccountType::DEFAULT, AccountType::ASSET]);
-        $currency = app('amount')->getDefaultCurrency();
-        $balances = app('steam')->balancesByAccounts($accounts, $date);
 
-        /** @var Account $account */
-        foreach ($accounts as $account) {
-            $accountCurrency = null;
-            $balance         = $balances[$account->id] ?? '0';
-            $currencyId      = (int)$repository->getMetaValue($account, 'currency_id');
-            if ($currencyId !== 0) {
-                $accountCurrency = $currencyRepos->findNull($currencyId);
-            }
-            if (null === $accountCurrency) {
-                $accountCurrency = $currency;
-            }
+        /** @var NetWorthInterface $netWorthHelper */
+        $netWorthHelper = app(NetWorthInterface::class);
+        $netWorthHelper->setUser(auth()->user());
 
-            // if the account is a credit card, subtract the virtual balance from the balance,
-            // to better reflect that this is not money that is actually "yours".
-            $role           = (string)$repository->getMetaValue($account, 'accountRole');
-            $virtualBalance = (string)$account->virtual_balance;
-            if ($role === 'ccAsset' && $virtualBalance !== '' && (float)$virtualBalance > 0) {
-                $balance = bcsub($balance, $virtualBalance);
-            }
+        /** @var AccountRepositoryInterface $accountRepository */
+        $accountRepository = app(AccountRepositoryInterface::class);
+        $allAccounts = $accountRepository->getActiveAccountsByType(
+            [AccountType::DEFAULT, AccountType::ASSET, AccountType::DEBT, AccountType::LOAN, AccountType::MORTGAGE, AccountType::CREDITCARD]
+        );
+        Log::debug(sprintf('Found %d accounts.', $allAccounts->count()));
 
-            if (!isset($netWorth[$accountCurrency->id])) {
-                $netWorth[$accountCurrency->id]['currency'] = $accountCurrency;
-                $netWorth[$accountCurrency->id]['sum']      = '0';
+        // filter list on preference of being included.
+        $filtered = $allAccounts->filter(
+            function (Account $account) use ($accountRepository) {
+                $includeNetWorth = $accountRepository->getMetaValue($account, 'include_net_worth');
+                $result          = null === $includeNetWorth ? true : '1' === $includeNetWorth;
+                if (false === $result) {
+                    Log::debug(sprintf('Will not include "%s" in net worth charts.', $account->name));
+                }
+
+                return $result;
             }
-            $netWorth[$accountCurrency->id]['sum'] = bcadd($netWorth[$accountCurrency->id]['sum'], $balance);
-        }
+        );
+
+        $netWorthSet = $netWorthHelper->getNetWorthByCurrency($filtered, $date);
+
 
         $return = [];
-        foreach ($netWorth as $currencyId => $data) {
-            $return[$currencyId] = app('amount')->formatAnything($data['currency'], $data['sum'], false);
+        foreach ($netWorthSet as $index => $data) {
+            /** @var TransactionCurrency $currency */
+            $currency = $data['currency'];
+            $return[$currency->id] = app('amount')->formatAnything($currency, $data['balance'], false);
         }
         $return = [
             'net_worths' => array_values($return),
         ];
 
-        $cache->store($return);
-
         return response()->json($return);
     }
+
 }

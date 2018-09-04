@@ -58,7 +58,7 @@ class ChooseAccountsHandler implements BunqJobConfigurationInterface
         $config   = $this->repository->getConfiguration($this->importJob);
         $mapping  = $config['mapping'] ?? [];
         $complete = \count($mapping) > 0;
-        if ($complete === true) {
+        if (true === $complete) {
             // move job to correct stage to download transactions
             $this->repository->setStage($this->importJob, 'go-for-import');
         }
@@ -76,16 +76,28 @@ class ChooseAccountsHandler implements BunqJobConfigurationInterface
      */
     public function configureJob(array $data): MessageBag
     {
-        $config   = $this->repository->getConfiguration($this->importJob);
-        $accounts = $config['accounts'] ?? [];
-        $mapping  = $data['account_mapping'] ?? [];
-        $final    = [];
-        if (\count($accounts) === 0) {
+        $config     = $this->repository->getConfiguration($this->importJob);
+        $accounts   = $config['accounts'] ?? [];
+        $mapping    = $data['account_mapping'] ?? [];
+        $applyRules = 1 === (int)$data['apply_rules'];
+        $final      = [];
+
+        /*
+         * $ibanToAsset is used to map bunq IBAN's to Firefly III asset accounts. The array is structured like this:
+         * 12BUNQ123456.. => 1,
+         * 12BUNQ928811.. => 4,
+         *
+         * And contains the bunq asset account iban (left) and the FF3 asset ID (right).
+         *
+         * This is used to properly map transfers.
+         */
+        $ibanToAsset = [];
+        if (0 === \count($accounts)) {
             throw new FireflyException('No bunq accounts found. Import cannot continue.'); // @codeCoverageIgnore
         }
-        if (\count($mapping) === 0) {
+        if (0 === \count($mapping)) {
             $messages = new MessageBag;
-            $messages->add('nomap', trans('import.bunq_no_mapping'));
+            $messages->add('nomap', (string)trans('import.bunq_no_mapping'));
 
             return $messages;
         }
@@ -94,11 +106,17 @@ class ChooseAccountsHandler implements BunqJobConfigurationInterface
             $localId = (int)$localId;
 
             // validate each
-            $bunqId         = $this->validBunqAccount($bunqId);
-            $accountId      = $this->validLocalAccount($localId);
+            $bunqId    = $this->validBunqAccount($bunqId);
+            $accountId = $this->validLocalAccount($localId);
+            $bunqIban  = $this->getBunqIban($bunqId);
+            if (null !== $bunqIban) {
+                $ibanToAsset[$bunqIban] = $accountId;
+            }
             $final[$bunqId] = $accountId;
         }
-        $config['mapping'] = $final;
+        $config['mapping']     = $final;
+        $config['bunq-iban']   = $ibanToAsset;
+        $config['apply-rules'] = $applyRules;
         $this->repository->setConfiguration($this->importJob, $config);
 
         return new MessageBag;
@@ -114,7 +132,7 @@ class ChooseAccountsHandler implements BunqJobConfigurationInterface
     {
         $config   = $this->repository->getConfiguration($this->importJob);
         $accounts = $config['accounts'] ?? [];
-        if (\count($accounts) === 0) {
+        if (0 === \count($accounts)) {
             throw new FireflyException('No bunq accounts found. Import cannot continue.'); // @codeCoverageIgnore
         }
         // list the users accounts:
@@ -165,6 +183,25 @@ class ChooseAccountsHandler implements BunqJobConfigurationInterface
         $this->repository->setUser($importJob->user);
         $this->currencyRepository->setUser($importJob->user);
         $this->accountRepository->setUser($importJob->user);
+    }
+
+    /**
+     * @param int $bunqId
+     *
+     * @return null|string
+     */
+    private function getBunqIban(int $bunqId): ?string
+    {
+        $config   = $this->repository->getConfiguration($this->importJob);
+        $accounts = $config['accounts'] ?? [];
+        /** @var array $bunqAccount */
+        foreach ($accounts as $bunqAccount) {
+            if ((int)$bunqAccount['id'] === $bunqId) {
+                return $bunqAccount['iban'] ?? null;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -24,9 +24,9 @@ namespace FireflyIII\Http\Controllers\Import;
 
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Http\Controllers\Controller;
-use FireflyIII\Import\JobConfiguration\JobConfigurationInterface;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
+use FireflyIII\Support\Http\Controllers\CreateStuff;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\MessageBag;
@@ -37,11 +37,12 @@ use Log;
  */
 class JobConfigurationController extends Controller
 {
-    /** @var ImportJobRepositoryInterface */
+    use CreateStuff;
+    /** @var ImportJobRepositoryInterface The import job repository */
     public $repository;
 
     /**
-     *
+     * JobConfigurationController constructor.
      */
     public function __construct()
     {
@@ -50,7 +51,7 @@ class JobConfigurationController extends Controller
         $this->middleware(
             function ($request, $next) {
                 app('view')->share('mainTitleIcon', 'fa-archive');
-                app('view')->share('title', trans('firefly.import_index_title'));
+                app('view')->share('title', (string)trans('firefly.import_index_title'));
                 $this->repository = app(ImportJobRepositoryInterface::class);
 
                 return $next($request);
@@ -66,15 +67,17 @@ class JobConfigurationController extends Controller
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Illuminate\View\View
      *
      * @throws FireflyException
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     *
      */
     public function index(ImportJob $importJob)
     {
         Log::debug('Now in JobConfigurationController::index()');
-        // catch impossible status:
         $allowed = ['has_prereq', 'need_job_config'];
         if (null !== $importJob && !\in_array($importJob->status, $allowed, true)) {
             Log::debug(sprintf('Job has state "%s", but we only accept %s', $importJob->status, json_encode($allowed)));
-            session()->flash('error', trans('import.bad_job_status', ['status' => $importJob->status]));
+            session()->flash('error', (string)trans('import.bad_job_status', ['status' => $importJob->status]));
 
             return redirect(route('import.index'));
         }
@@ -85,26 +88,23 @@ class JobConfigurationController extends Controller
         if (!(bool)config(sprintf('import.has_job_config.%s', $importProvider))) {
             // @codeCoverageIgnoreStart
             Log::debug('Job needs no config, is ready to run!');
-            $this->repository->updateStatus($importJob, 'ready_to_run');
+            $this->repository->setStatus($importJob, 'ready_to_run');
 
             return redirect(route('import.job.status.index', [$importJob->key]));
             // @codeCoverageIgnoreEnd
         }
 
-        // create configuration class:
         $configurator = $this->makeConfigurator($importJob);
-
-        // is the job already configured?
         if ($configurator->configurationComplete()) {
             Log::debug('Config is complete, set status to ready_to_run.');
-            $this->repository->updateStatus($importJob, 'ready_to_run');
+            $this->repository->setStatus($importJob, 'ready_to_run');
 
             return redirect(route('import.job.status.index', [$importJob->key]));
         }
 
         $view         = $configurator->getNextView();
         $data         = $configurator->getNextData();
-        $subTitle     = trans('import.job_configuration_breadcrumb', ['key' => $importJob->key]);
+        $subTitle     = (string)trans('import.job_configuration_breadcrumb', ['key' => $importJob->key]);
         $subTitleIcon = 'fa-wrench';
 
         return view($view, compact('data', 'importJob', 'subTitle', 'subTitleIcon'));
@@ -119,13 +119,15 @@ class JobConfigurationController extends Controller
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
      *
      * @throws FireflyException
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function post(Request $request, ImportJob $importJob)
     {
         // catch impossible status:
         $allowed = ['has_prereq', 'need_job_config'];
         if (null !== $importJob && !\in_array($importJob->status, $allowed, true)) {
-            session()->flash('error', trans('import.bad_job_status', ['status' => $importJob->status]));
+            session()->flash('error', (string)trans('import.bad_job_status', ['status' => $importJob->status]));
 
             return redirect(route('import.index'));
         }
@@ -135,7 +137,7 @@ class JobConfigurationController extends Controller
 
         // is the job already configured?
         if ($configurator->configurationComplete()) {
-            $this->repository->updateStatus($importJob, 'ready_to_run');
+            $this->repository->setStatus($importJob, 'ready_to_run');
 
             return redirect(route('import.job.status.index', [$importJob->key]));
         }
@@ -160,25 +162,5 @@ class JobConfigurationController extends Controller
         return redirect(route('import.job.configuration.index', [$importJob->key]));
     }
 
-    /**
-     * @param ImportJob $importJob
-     *
-     * @return JobConfigurationInterface
-     *
-     * @throws FireflyException
-     */
-    private function makeConfigurator(ImportJob $importJob): JobConfigurationInterface
-    {
-        $key       = sprintf('import.configuration.%s', $importJob->provider);
-        $className = (string)config($key);
-        if (null === $className || !class_exists($className)) {
-            throw new FireflyException(sprintf('Cannot find configurator class for job with provider "%s".', $importJob->provider)); // @codeCoverageIgnore
-        }
-        Log::debug(sprintf('Going to create class "%s"', $className));
-        /** @var JobConfigurationInterface $configurator */
-        $configurator = app($className);
-        $configurator->setImportJob($importJob);
 
-        return $configurator;
-    }
 }

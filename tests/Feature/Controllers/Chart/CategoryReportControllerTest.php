@@ -24,7 +24,7 @@ namespace Tests\Feature\Controllers\Chart;
 
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
 use FireflyIII\Helpers\Chart\MetaPieChartInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\NegativeAmountFilter;
 use FireflyIII\Helpers\Filter\OpposingAccountFilter;
 use FireflyIII\Helpers\Filter\PositiveAmountFilter;
@@ -36,25 +36,20 @@ use Tests\TestCase;
 
 /**
  * Class CategoryReportControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class CategoryReportControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::accountExpense
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::__construct
+     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController
      */
     public function testAccountExpense(): void
     {
@@ -75,7 +70,7 @@ class CategoryReportControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::accountIncome
+     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController
      */
     public function testAccountIncome(): void
     {
@@ -96,7 +91,7 @@ class CategoryReportControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::categoryExpense
+     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController
      */
     public function testCategoryExpense(): void
     {
@@ -117,7 +112,7 @@ class CategoryReportControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::categoryIncome
+     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController
      */
     public function testCategoryIncome(): void
     {
@@ -138,15 +133,12 @@ class CategoryReportControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::mainChart
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::groupByCategory
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::getExpenses
-     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController::getIncome
+     * @covers \FireflyIII\Http\Controllers\Chart\CategoryReportController
      */
     public function testMainChart(): void
     {
         $generator    = $this->mock(GeneratorInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $transactions = factory(Transaction::class, 10)->make();
 
         $collector->shouldReceive('setAccounts')->andReturnSelf();
@@ -159,7 +151,7 @@ class CategoryReportControllerTest extends TestCase
         $collector->shouldReceive('addFilter')->withArgs([NegativeAmountFilter::class])->andReturnSelf();
         $collector->shouldReceive('setCategories')->andReturnSelf();
         $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
         $generator->shouldReceive('multiSet')->andReturn([])->once();
 
         $this->be($this->user());

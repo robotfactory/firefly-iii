@@ -33,9 +33,9 @@ use Log;
  */
 class FileRoutine implements RoutineInterface
 {
-    /** @var ImportJob */
+    /** @var ImportJob The import job */
     private $importJob;
-    /** @var ImportJobRepositoryInterface */
+    /** @var ImportJobRepositoryInterface Import job repository */
     private $repository;
 
     /**
@@ -48,7 +48,7 @@ class FileRoutine implements RoutineInterface
     public function run(): void
     {
         Log::debug(sprintf('Now in run() for file routine with status: %s', $this->importJob->status));
-        if ($this->importJob->status === 'ready_to_run') {
+        if ('ready_to_run' === $this->importJob->status) {
             $this->repository->setStatus($this->importJob, 'running');
             // get processor, depending on file type
             // is just CSV for now.
@@ -66,6 +66,8 @@ class FileRoutine implements RoutineInterface
     }
 
     /**
+     * Set the import job.
+     *
      * @param ImportJob $importJob
      *
      * @return void

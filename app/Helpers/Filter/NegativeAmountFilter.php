@@ -30,10 +30,14 @@ use Log;
  * Class NegativeAmountFilter.
  *
  * This filter removes entries with a negative amount (the original modifier is -1).
+ *
+ * @codeCoverageIgnore
  */
 class NegativeAmountFilter implements FilterInterface
 {
     /**
+     * See class description.
+     *
      * @param Collection $set
      *
      * @return Collection

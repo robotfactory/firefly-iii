@@ -29,6 +29,7 @@ use FireflyIII\Models\AccountType;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class AssetAccountsTest
@@ -36,7 +37,17 @@ use Tests\TestCase;
 class AssetAccountsTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\Import\Mapper\AssetAccounts::getMap()
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+
+    /**
+     * @covers \FireflyIII\Import\Mapper\AssetAccounts
      */
     public function testGetMapBasic(): void
     {

@@ -124,8 +124,8 @@ class PiggyBankTransformer extends TransformerAbstract
         $accountRepos = app(AccountRepositoryInterface::class);
         $accountRepos->setUser($account->user);
         $currencyId = (int)$accountRepos->getMetaValue($account, 'currency_id');
-
-        if ($currencyId === 0) {
+        $currency   = null;
+        if (0 === $currencyId) {
             $currency = app('amount')->getDefaultCurrencyByUser($account->user);
         }
 
@@ -166,11 +166,11 @@ class PiggyBankTransformer extends TransformerAbstract
             'percentage'      => $percentage,
             'current_amount'  => $currentAmount,
             'left_to_save'    => round($leftToSave, $decimalPlaces),
-            'save_per_month'  => $piggyRepos->getSuggestedMonthlyAmount($piggyBank),
-            'startdate'       => $startDate,
-            'targetdate'      => $targetDate,
+            'save_per_month'  => round($piggyRepos->getSuggestedMonthlyAmount($piggyBank), $decimalPlaces),
+            'start_date'      => $startDate,
+            'target_date'     => $targetDate,
             'order'           => (int)$piggyBank->order,
-            'active'          => (int)$piggyBank->active === 1,
+            'active'          => true,
             'notes'           => null,
             'links'           => [
                 [

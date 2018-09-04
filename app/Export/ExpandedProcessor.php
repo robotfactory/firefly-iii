@@ -1,5 +1,4 @@
 <?php
-
 /**
  * ExpandedProcessor.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -20,6 +19,8 @@
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @noinspection PhpDynamicAsStaticMethodCallInspection */
+
 declare(strict_types=1);
 
 namespace FireflyIII\Export;
@@ -30,43 +31,47 @@ use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Export\Collector\AttachmentCollector;
 use FireflyIII\Export\Collector\UploadCollector;
 use FireflyIII\Export\Entry\Entry;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Export\Exporter\ExporterInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\InternalTransferFilter;
 use FireflyIII\Models\AccountMeta;
 use FireflyIII\Models\ExportJob;
 use FireflyIII\Models\Note;
 use FireflyIII\Models\Transaction;
+use FireflyIII\Models\TransactionJournal;
 use FireflyIII\Repositories\Currency\CurrencyRepositoryInterface;
 use Illuminate\Support\Collection;
 use Log;
 use Storage;
 use ZipArchive;
-use FireflyIII\Models\TransactionJournal;
 
 /**
  * Class ExpandedProcessor.
  *
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects) // its doing a lot.
+ *
+ * @codeCoverageIgnore
+ * @deprecated
  */
 class ExpandedProcessor implements ProcessorInterface
 {
-    /** @var Collection */
+    /** @var Collection All accounts */
     public $accounts;
-    /** @var string */
+    /** @var string The export format */
     public $exportFormat;
-    /** @var bool */
+    /** @var bool Should include attachments */
     public $includeAttachments;
-    /** @var bool */
+    /** @var bool Should include old uploads */
     public $includeOldUploads;
-    /** @var ExportJob */
+    /** @var ExportJob The export job itself */
     public $job;
-    /** @var array */
+    /** @var array The settings */
     public $settings;
-    /** @var Collection */
+    /** @var Collection The entries to export. */
     private $exportEntries;
-    /** @var Collection */
+    /** @var Collection The files to export */
     private $files;
-    /** @var Collection */
+    /** @var Collection The journals. */
     private $journals;
 
     /**
@@ -80,6 +85,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Collect all attachments
+     *
      * @return bool
      */
     public function collectAttachments(): bool
@@ -103,13 +110,13 @@ class ExpandedProcessor implements ProcessorInterface
     public function collectJournals(): bool
     {
         // use journal collector thing.
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setUser($this->job->user);
         $collector->setAccounts($this->accounts)->setRange($this->settings['startDate'], $this->settings['endDate'])
                   ->withOpposingAccount()->withBudgetInformation()->withCategoryInformation()
                   ->removeFilter(InternalTransferFilter::class);
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
         // get some more meta data for each entry:
         $ids         = $transactions->pluck('journal_id')->toArray();
         $assetIds    = $transactions->pluck('account_id')->toArray();
@@ -143,6 +150,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Get old oploads.
+     *
      * @return bool
      */
     public function collectOldUploads(): bool
@@ -158,6 +167,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Convert journals to export objects.
+     *
      * @return bool
      */
     public function convertJournals(): bool
@@ -173,6 +184,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Create a ZIP file.
+     *
      * @return bool
      *
      * @throws FireflyException
@@ -204,12 +217,15 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Export the journals.
+     *
      * @return bool
      */
     public function exportJournals(): bool
     {
         $exporterClass = config('firefly.export_formats.' . $this->exportFormat);
-        $exporter      = app($exporterClass);
+        /** @var ExporterInterface $exporter */
+        $exporter = app($exporterClass);
         $exporter->setJob($this->job);
         $exporter->setEntries($this->exportEntries);
         $exporter->run();
@@ -219,6 +235,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Get files.
+     *
      * @return Collection
      */
     public function getFiles(): Collection
@@ -231,7 +249,7 @@ class ExpandedProcessor implements ProcessorInterface
      *
      * @param array $settings
      */
-    public function setSettings(array $settings)
+    public function setSettings(array $settings): void
     {
         // save settings
         $this->settings           = $settings;
@@ -243,9 +261,9 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
-     *
+     * Delete files.
      */
-    private function deleteFiles()
+    private function deleteFiles(): void
     {
         $disk = Storage::disk('export');
         foreach ($this->getFiles() as $file) {
@@ -254,6 +272,8 @@ class ExpandedProcessor implements ProcessorInterface
     }
 
     /**
+     * Get currencies.
+     *
      * @param array $array
      *
      * @return array

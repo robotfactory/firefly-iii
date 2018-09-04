@@ -25,8 +25,8 @@ namespace Tests\Unit\Import\Storage;
 
 use Carbon\Carbon;
 use FireflyIII\Exceptions\FireflyException;
-use FireflyIII\Helpers\Collector\JournalCollector;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollector;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\InternalTransferFilter;
 use FireflyIII\Import\Storage\ImportArrayStorage;
 use FireflyIII\Models\ImportJob;
@@ -38,7 +38,9 @@ use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
 use FireflyIII\Repositories\Rule\RuleRepositoryInterface;
 use FireflyIII\Repositories\Tag\TagRepositoryInterface;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Support\Collection;
+use Log;
 use Mockery;
 use Tests\TestCase;
 
@@ -47,6 +49,15 @@ use Tests\TestCase;
  */
 class ImportArrayStorageTest extends TestCase
 {
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
 
     /**
      * Very basic storage routine. Doesn't call store()
@@ -55,10 +66,14 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasic(): void
     {
+        // mock stuff
+        $repository   = $this->mock(ImportJobRepositoryInterface::class);
+        $journalRepos = $this->mock(JournalRepositoryInterface::class);
+        $userRepos    = $this->mock(UserRepositoryInterface::class);
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'a_storage' . random_int(1, 1000);
+        $job->key           = 'a_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -67,9 +82,6 @@ class ImportArrayStorageTest extends TestCase
         $job->transactions  = [];
         $job->save();
 
-        // mock stuff
-        $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
 
         // mock calls:
         $repository->shouldReceive('setUser')->once();
@@ -84,6 +96,9 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreDoubleTransferWithRules(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // get a transfer:
         /** @var TransactionJournal $transfer */
         $transfer = $this->user()->transactionJournals()
@@ -91,15 +106,15 @@ class ImportArrayStorageTest extends TestCase
                          ->first();
 
         // get transfer as a collection, so the compare routine works.
-        $journalCollector = new JournalCollector();
-        $journalCollector->setUser($this->user());
-        $journalCollector->setJournals(new Collection([$transfer]));
-        $transferCollection = $journalCollector->withOpposingAccount()->getJournals();
+        $transactionCollector = new TransactionCollector;
+        $transactionCollector->setUser($this->user());
+        $transactionCollector->setJournals(new Collection([$transfer]));
+        $transferCollection = $transactionCollector->withOpposingAccount()->getTransactions();
 
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'h_storage' . random_int(1, 1000);
+        $job->key           = 'h_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -119,13 +134,14 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
 
         // mock calls:
-        $collector->shouldReceive('setUser')->once();
+        $collector->shouldReceive('setUser')->times(2);
+
         $repository->shouldReceive('setUser')->once();
         $repository->shouldReceive('setStatus')->withAnyArgs();
         $ruleRepos->shouldReceive('setUser')->once();
@@ -142,12 +158,17 @@ class ImportArrayStorageTest extends TestCase
 
 
         // mock collector so it will return some transfers:
-        $collector->shouldReceive('setAllAssetAccounts')->once()->andReturnSelf();
+        $collector->shouldReceive('setAllAssetAccounts')->times(1)->andReturnSelf();
         $collector->shouldReceive('setTypes')->withArgs([[TransactionType::TRANSFER]])->once()->andReturnSelf();
-        $collector->shouldReceive('withOpposingAccount')->once()->andReturnSelf();
+        $collector->shouldReceive('withOpposingAccount')->times(2)->andReturnSelf();
         $collector->shouldReceive('ignoreCache')->once()->andReturnSelf();
         $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->once()->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transferCollection);
+        $collector->shouldReceive('getTransactions')->andReturn($transferCollection);
+
+        // set journals for the return method.
+        $collector->shouldReceive('setJournals')->andReturnSelf();
+        $collector->shouldReceive('addFilter')->andReturnSelf();
+
 
         $storage = new ImportArrayStorage;
         $storage->setImportJob($job);
@@ -167,11 +188,14 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreIsDouble(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $transactions = [$this->singleWithdrawal(), $this->singleWithdrawal()];
         $job          = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'b_storage' . random_int(1, 1000);
+        $job->key           = 'b_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -192,7 +216,7 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
@@ -229,10 +253,13 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreNothing(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'c_storage' . random_int(1, 1000);
+        $job->key           = 'c_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -268,10 +295,13 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreNothingWithRules(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'd_storage' . random_int(1, 1000);
+        $job->key           = 'd_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -282,7 +312,7 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
@@ -310,10 +340,13 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreSingleWithNoRules(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'e_storage' . random_int(1, 1000);
+        $job->key           = 'e_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -328,7 +361,7 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
@@ -361,10 +394,13 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreSingleWithRules(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'f_storage' . random_int(1, 1000);
+        $job->key           = 'f_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -383,7 +419,7 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
@@ -399,6 +435,7 @@ class ImportArrayStorageTest extends TestCase
         $journalRepos->shouldReceive('setUser')->once();
         $journalRepos->shouldReceive('store')->once()->andReturn($journal);
         $journalRepos->shouldReceive('findByHash')->andReturn(null)->times(2);
+
 
         $storage = new ImportArrayStorage;
         $storage->setImportJob($job);
@@ -416,10 +453,13 @@ class ImportArrayStorageTest extends TestCase
      */
     public function testBasicStoreTransferWithRules(): void
     {
+        $userRepos = $this->mock(UserRepositoryInterface::class);
+        $userRepos->shouldReceive('findNull')->once()->andReturn($this->user());
+
         // make fake job
         $job = new ImportJob;
         $job->user()->associate($this->user());
-        $job->key           = 'g_storage' . random_int(1, 1000);
+        $job->key           = 'g_storage' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -434,10 +474,10 @@ class ImportArrayStorageTest extends TestCase
                          ->first();
 
         // get transfer as a collection, so the compare routine works.
-        $journalCollector = new JournalCollector();
-        $journalCollector->setUser($this->user());
-        $journalCollector->setJournals(new Collection([$transfer]));
-        $transferCollection = $journalCollector->withOpposingAccount()->getJournals();
+        $transactionCollector = new TransactionCollector;
+        $transactionCollector->setUser($this->user());
+        $transactionCollector->setJournals(new Collection([$transfer]));
+        $transferCollection = $transactionCollector->withOpposingAccount()->getTransactions();
 
         // get some stuff:
         $tag                      = $this->user()->tags()->inRandomOrder()->first();
@@ -449,13 +489,13 @@ class ImportArrayStorageTest extends TestCase
 
         // mock stuff
         $repository   = $this->mock(ImportJobRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $tagRepos     = $this->mock(TagRepositoryInterface::class);
         $ruleRepos    = $this->mock(RuleRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
 
         // mock calls:
-        $collector->shouldReceive('setUser')->once();
+        $collector->shouldReceive('setUser')->times(2); // twice for transfer
         $repository->shouldReceive('setUser')->once();
         $repository->shouldReceive('setStatus')->withAnyArgs();
         $ruleRepos->shouldReceive('setUser')->once();
@@ -471,9 +511,13 @@ class ImportArrayStorageTest extends TestCase
         $collector->shouldReceive('setAllAssetAccounts')->once()->andReturnSelf();
         $collector->shouldReceive('setTypes')->withArgs([[TransactionType::TRANSFER]])->once()->andReturnSelf();
         $collector->shouldReceive('ignoreCache')->once()->andReturnSelf();
-        $collector->shouldReceive('withOpposingAccount')->once()->andReturnSelf();
+        $collector->shouldReceive('withOpposingAccount')->times(2)->andReturnSelf();
         $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->once()->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transferCollection);
+        $collector->shouldReceive('getTransactions')->andReturn($transferCollection);
+
+        // set journals for the return method.
+        $collector->shouldReceive('setJournals')->andReturnSelf();
+        $collector->shouldReceive('addFilter')->andReturnSelf();
 
         $storage = new ImportArrayStorage;
         $storage->setImportJob($job);

@@ -24,9 +24,8 @@ declare(strict_types=1);
 namespace FireflyIII\Transformers;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Models\Bill;
-use FireflyIII\Models\Note;
 use FireflyIII\Repositories\Bill\BillRepositoryInterface;
 use Illuminate\Support\Collection;
 use League\Fractal\Resource\Collection as FractalCollection;
@@ -45,13 +44,13 @@ class BillTransformer extends TransformerAbstract
      *
      * @var array
      */
-    protected $availableIncludes = ['attachments', 'transactions', 'user'];
+    protected $availableIncludes = ['attachments', 'transactions', 'user', 'notes', 'rules'];
     /**
      * List of resources to automatically include
      *
      * @var array
      */
-    protected $defaultIncludes = [];
+    protected $defaultIncludes = ['notes', 'rules'];
 
     /** @var ParameterBag */
     protected $parameters;
@@ -84,6 +83,40 @@ class BillTransformer extends TransformerAbstract
     }
 
     /**
+     * Attach the notes.
+     *
+     * @codeCoverageIgnore
+     *
+     * @param Bill $bill
+     *
+     * @return FractalCollection
+     */
+    public function includeNotes(Bill $bill): FractalCollection
+    {
+        return $this->collection($bill->notes, new NoteTransformer($this->parameters), 'notes');
+    }
+
+    /**
+     * Attach the rules.
+     *
+     * @codeCoverageIgnore
+     *
+     * @param Bill $bill
+     *
+     * @return FractalCollection
+     */
+    public function includeRules(Bill $bill): FractalCollection
+    {
+        /** @var BillRepositoryInterface $repository */
+        $repository = app(BillRepositoryInterface::class);
+        $repository->setUser($bill->user);
+        // add info about rules:
+        $rules = $repository->getRulesForBill($bill);
+
+        return $this->collection($rules, new RuleTransformer($this->parameters), 'rules');
+    }
+
+    /**
      * Include any transactions.
      *
      * @param Bill $bill
@@ -96,7 +129,7 @@ class BillTransformer extends TransformerAbstract
         $pageSize = (int)app('preferences')->getForUser($bill->user, 'listPageSize', 50)->data;
 
         // journals always use collector and limited using URL parameters.
-        $collector = app(JournalCollectorInterface::class);
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setUser($bill->user);
         $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
         $collector->setAllAssetAccounts();
@@ -105,9 +138,9 @@ class BillTransformer extends TransformerAbstract
             $collector->setRange($this->parameters->get('start'), $this->parameters->get('end'));
         }
         $collector->setLimit($pageSize)->setPage($this->parameters->get('page'));
-        $journals = $collector->getJournals();
+        $transactions = $collector->getTransactions();
 
-        return $this->collection($journals, new TransactionTransformer($this->parameters), 'transactions');
+        return $this->collection($transactions, new TransactionTransformer($this->parameters), 'transactions');
     }
 
     /**
@@ -141,19 +174,18 @@ class BillTransformer extends TransformerAbstract
             'name'                => $bill->name,
             'currency_id'         => $bill->transaction_currency_id,
             'currency_code'       => $bill->transactionCurrency->code,
-            'match'               => explode(',', $bill->match),
-            'amount_min'          => round($bill->amount_min, 2),
-            'amount_max'          => round($bill->amount_max, 2),
+            'currency_symbol'     => $bill->transactionCurrency->symbol,
+            'amount_min'          => round((float)$bill->amount_min, 2),
+            'amount_max'          => round((float)$bill->amount_max, 2),
             'date'                => $bill->date->format('Y-m-d'),
             'repeat_freq'         => $bill->repeat_freq,
             'skip'                => (int)$bill->skip,
-            'automatch'           => (int)$bill->automatch === 1,
-            'active'              => (int)$bill->active === 1,
+            'automatch'           => $bill->automatch,
+            'active'              => $bill->active,
             'attachments_count'   => $bill->attachments()->count(),
             'pay_dates'           => $payDates,
             'paid_dates'          => $paidData['paid_dates'],
             'next_expected_match' => $paidData['next_expected_match'],
-            'notes'               => null,
             'links'               => [
                 [
                     'rel' => 'self',
@@ -161,11 +193,6 @@ class BillTransformer extends TransformerAbstract
                 ],
             ],
         ];
-        /** @var Note $note */
-        $note = $bill->notes()->first();
-        if (null !== $note) {
-            $data['notes'] = $note->text;
-        }
 
         return $data;
 

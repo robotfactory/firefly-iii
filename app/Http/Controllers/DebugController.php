@@ -23,19 +23,28 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers;
 
+use Artisan;
 use Carbon\Carbon;
 use DB;
 use Exception;
+use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Http\Middleware\IsDemoUser;
+use FireflyIII\Support\Http\Controllers\GetConfigurationData;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Log;
 use Monolog\Handler\RotatingFileHandler;
+use Route as RouteFacade;
 
 /**
  * Class DebugController
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class DebugController extends Controller
 {
+    use GetConfigurationData;
+
     /**
      * HomeController constructor.
      */
@@ -45,11 +54,66 @@ class DebugController extends Controller
         $this->middleware(IsDemoUser::class);
     }
 
+    /**
+     * Show all possible errors.
+     *
+     * @throws FireflyException
+     */
+    public function displayError(): void
+    {
+        Log::debug('This is a test message at the DEBUG level.');
+        Log::info('This is a test message at the INFO level.');
+        Log::notice('This is a test message at the NOTICE level.');
+        Log::warning('This is a test message at the WARNING level.');
+        Log::error('This is a test message at the ERROR level.');
+        Log::critical('This is a test message at the CRITICAL level.');
+        Log::alert('This is a test message at the ALERT level.');
+        Log::emergency('This is a test message at the EMERGENCY level.');
+        throw new FireflyException('A very simple test error.');
+    }
 
     /**
+     * Clear log and session.
+     *
+     * @param Request $request
+     *
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    public function flush(Request $request)
+    {
+        app('preferences')->mark();
+        $request->session()->forget(['start', 'end', '_previous', 'viewRange', 'range', 'is_custom_range']);
+        Log::debug('Call cache:clear...');
+        Artisan::call('cache:clear');
+        Log::debug('Call config:clear...');
+        Artisan::call('config:clear');
+        Log::debug('Call route:clear...');
+        Artisan::call('route:clear');
+        Log::debug('Call twig:clean...');
+        try {
+            Artisan::call('twig:clean');
+            // @codeCoverageIgnoreStart
+        } catch (Exception $e) {
+            // don't care
+            Log::debug(sprintf('Called twig:clean: %s', $e->getMessage()));
+        }
+        // @codeCoverageIgnoreEnd
+        Log::debug('Call view:clear...');
+        Artisan::call('view:clear');
+        Log::debug('Done! Redirecting...');
+
+        return redirect(route('index'));
+    }
+
+    /**
+     * Show debug info.
+     *
      * @param Request $request
      *
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     public function index(Request $request)
     {
@@ -59,7 +123,7 @@ class DebugController extends Controller
         $phpVersion     = str_replace($search, $replace, PHP_VERSION);
         $phpOs          = str_replace($search, $replace, PHP_OS);
         $interface      = PHP_SAPI;
-        $now            = Carbon::create()->format('Y-m-d H:i:s e');
+        $now            = Carbon::now()->format('Y-m-d H:i:s e');
         $extensions     = implode(', ', get_loaded_extensions());
         $drivers        = implode(', ', DB::availableDrivers());
         $currentDriver  = DB::getDriverName();
@@ -72,15 +136,15 @@ class DebugController extends Controller
         $errorReporting = $this->errorReporting((int)ini_get('error_reporting'));
         $appEnv         = env('APP_ENV', '');
         $appDebug       = var_export(env('APP_DEBUG', false), true);
-        $appLog         = env('APP_LOG', '');
-        $appLogLevel    = env('APP_LOG_LEVEL', '');
+        $logChannel     = env('LOG_CHANNEL', '');
+        $appLogLevel    = env('APP_LOG_LEVEL', 'info');
         $packages       = $this->collectPackages();
         $cacheDriver    = env('CACHE_DRIVER', 'unknown');
 
         // set languages, see what happens:
         $original       = setlocale(LC_ALL, 0);
         $localeAttempts = [];
-        $parts          = explode(',', trans('config.locale'));
+        $parts          = explode(',', (string)trans('config.locale'));
         foreach ($parts as $code) {
             $code                  = trim($code);
             $localeAttempts[$code] = var_export(setlocale(LC_ALL, $code), true);
@@ -111,58 +175,74 @@ class DebugController extends Controller
 
         return view(
             'debug', compact(
-            'phpVersion', 'extensions', 'localeAttempts', 'appEnv', 'appDebug', 'appLog', 'appLogLevel', 'now', 'packages', 'drivers', 'currentDriver',
-            'userAgent', 'displayErrors', 'errorReporting', 'phpOs', 'interface', 'logContent', 'cacheDriver', 'isDocker', 'isSandstorm', 'trustedProxies',
-            'toSandbox'
-        )
+                       'phpVersion', 'extensions', 'localeAttempts', 'appEnv', 'appDebug', 'logChannel', 'appLogLevel', 'now', 'packages', 'drivers',
+                       'currentDriver',
+                       'userAgent', 'displayErrors', 'errorReporting', 'phpOs', 'interface', 'logContent', 'cacheDriver', 'isDocker', 'isSandstorm',
+                       'trustedProxies',
+                       'toSandbox'
+                   )
         );
     }
 
     /**
-     * Some common combinations.
-     *
-     * @param int $value
+     * Return all possible routes.
      *
      * @return string
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
-    protected function errorReporting(int $value): string
+    public function routes(): string
     {
-        $array = [
-            -1                                                             => 'ALL errors',
-            E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED                  => 'E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED',
-            E_ALL                                                          => 'E_ALL',
-            E_ALL & ~E_DEPRECATED & ~E_STRICT                              => 'E_ALL & ~E_DEPRECATED & ~E_STRICT',
-            E_ALL & ~E_NOTICE                                              => 'E_ALL & ~E_NOTICE',
-            E_ALL & ~E_NOTICE & ~E_STRICT                                  => 'E_ALL & ~E_NOTICE & ~E_STRICT',
-            E_COMPILE_ERROR | E_RECOVERABLE_ERROR | E_ERROR | E_CORE_ERROR => 'E_COMPILE_ERROR|E_RECOVERABLE_ERROR|E_ERROR|E_CORE_ERROR',
+        $set    = RouteFacade::getRoutes();
+        $ignore = ['chart.', 'javascript.', 'json.', 'report-data.', 'popup.', 'debugbar.', 'attachments.download', 'attachments.preview',
+                   'bills.rescan', 'budgets.income', 'currencies.def', 'error', 'flush', 'help.show', 'import.file',
+                   'login', 'logout', 'password.reset', 'profile.confirm-email-change', 'profile.undo-email-change',
+                   'register', 'report.options', 'routes', 'rule-groups.down', 'rule-groups.up', 'rules.up', 'rules.down',
+                   'rules.select', 'search.search', 'test-flash', 'transactions.link.delete', 'transactions.link.switch',
+                   'two-factor.lost', 'reports.options', 'debug', 'import.create-job', 'import.download', 'import.start', 'import.status.json',
+                   'preferences.delete-code', 'rules.test-triggers', 'piggy-banks.remove-money', 'piggy-banks.add-money',
+                   'accounts.reconcile.transactions', 'accounts.reconcile.overview', 'export.download',
+                   'transactions.clone', 'two-factor.index', 'api.v1', 'installer.', 'attachments.view', 'import.create',
+                   'import.job.download', 'import.job.start', 'import.job.status.json', 'import.job.store', 'recurring.events',
+                   'recurring.suggest',
         ];
-        if (isset($array[$value])) {
-            return $array[$value];
-        }
-
-        return (string)$value; // @codeCoverageIgnore
-    }
-
-    /**
-     * @return array
-     */
-    private function collectPackages(): array
-    {
-        $packages = [];
-        $file     = realpath(__DIR__ . '/../../../vendor/composer/installed.json');
-        if (!($file === false) && file_exists($file)) {
-            // file exists!
-            $content = file_get_contents($file);
-            $json    = json_decode($content, true);
-            foreach ($json as $package) {
-                $packages[]
-                    = [
-                    'name'    => $package['name'],
-                    'version' => $package['version'],
-                ];
+        $return = '&nbsp;';
+        /** @var Route $route */
+        foreach ($set as $route) {
+            $name = (string)$route->getName();
+            if (\in_array('GET', $route->methods(), true)) {
+                $found = false;
+                foreach ($ignore as $string) {
+                    if (!(false === stripos($name, $string))) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (false === $found) {
+                    $return .= 'touch ' . $route->getName() . '.md;';
+                }
             }
         }
 
-        return $packages;
+        return $return;
     }
+
+    /**
+     * Flash all types of messages.
+     *
+     * @param Request $request
+     *
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    public function testFlash(Request $request)
+    {
+        $request->session()->flash('success', 'This is a success message.');
+        $request->session()->flash('info', 'This is an info message.');
+        $request->session()->flash('warning', 'This is a warning.');
+        $request->session()->flash('error', 'This is an error!');
+
+        return redirect(route('home'));
+    }
+
+
 }

@@ -27,10 +27,13 @@ use FireflyIII\Exceptions\FireflyException;
 
 /**
  * Class ReportGeneratorFactory.
+ * @codeCoverageIgnore
  */
 class ReportGeneratorFactory
 {
     /**
+     * Static report generator class.
+     *
      * @param string $type
      * @param Carbon $start
      * @param Carbon $end

@@ -23,6 +23,7 @@ declare(strict_types=1);
 namespace FireflyIII\Support;
 
 use Cache;
+use Exception;
 use FireflyIII\Models\Configuration;
 use Log;
 
@@ -32,30 +33,29 @@ use Log;
 class FireflyConfig
 {
     /**
-     * @param $name
-     *
-     * @return bool
-     *
-
+     * @param string $name
      */
-    public function delete($name): bool
+    public function delete(string $name): void
     {
         $fullName = 'ff-config-' . $name;
         if (Cache::has($fullName)) {
             Cache::forget($fullName);
         }
-        Configuration::where('name', $name)->delete();
+        try {
+            Configuration::where('name', $name)->delete();
+        } catch (Exception $e) {
+            Log::debug(sprintf('Could not delete config value: %s', $e->getMessage()));
 
-        return true;
+        }
     }
 
     /**
-     * @param      $name
-     * @param null $default
+     * @param string $name
+     * @param mixed  $default
      *
      * @return \FireflyIII\Models\Configuration|null
      */
-    public function get($name, $default = null)
+    public function get(string $name, $default = null): ?Configuration
     {
         $fullName = 'ff-config-' . $name;
         if (Cache::has($fullName)) {
@@ -78,12 +78,12 @@ class FireflyConfig
     }
 
     /**
-     * @param      $name
-     * @param null $default
+     * @param string $name
+     * @param mixed  $default
      *
      * @return \FireflyIII\Models\Configuration|null
      */
-    public function getFresh($name, $default = null)
+    public function getFresh(string $name, $default = null): ?Configuration
     {
         $config = Configuration::where('name', $name)->first(['id', 'name', 'data']);
         if ($config) {
@@ -99,12 +99,12 @@ class FireflyConfig
     }
 
     /**
-     * @param $name
-     * @param $value
+     * @param string $name
+     * @param        $value
      *
      * @return Configuration
      */
-    public function put($name, $value): Configuration
+    public function put(string $name, $value): Configuration
     {
         return $this->set($name, $value);
     }
@@ -118,9 +118,11 @@ class FireflyConfig
     public function set(string $name, $value): Configuration
     {
         Log::debug('Set new value for ', ['name' => $name]);
+        /** @var Configuration $config */
         $config = Configuration::whereName($name)->first();
         if (null === $config) {
             Log::debug('Does not exist yet ', ['name' => $name]);
+            /** @var Configuration $item */
             $item       = new Configuration;
             $item->name = $name;
             $item->data = $value;
@@ -130,7 +132,7 @@ class FireflyConfig
 
             return $item;
         }
-        Log::debug('Exists already ', ['name' => $name]);
+        Log::debug('Exists already, overwrite value.', ['name' => $name]);
         $config->data = $value;
         $config->save();
         Cache::forget('ff-config-' . $name);

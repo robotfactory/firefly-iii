@@ -25,40 +25,14 @@ namespace FireflyIII\Handlers\Events;
 use FireflyIII\Events\StoredTransactionJournal;
 use FireflyIII\Models\Rule;
 use FireflyIII\Models\RuleGroup;
-use FireflyIII\Repositories\Journal\JournalRepositoryInterface as JRI;
-use FireflyIII\Repositories\PiggyBank\PiggyBankRepositoryInterface as PRI;
-use FireflyIII\Repositories\RuleGroup\RuleGroupRepositoryInterface as RGRI;
+use FireflyIII\Repositories\RuleGroup\RuleGroupRepositoryInterface;
 use FireflyIII\TransactionRules\Processor;
 
 /**
- * @codeCoverageIgnore
- *
  * Class StoredJournalEventHandler
  */
 class StoredJournalEventHandler
 {
-    /** @var JRI */
-    public $journalRepository;
-    /** @var PRI */
-    public $repository;
-
-    /** @var RGRI */
-    public $ruleGroupRepository;
-
-    /**
-     * StoredJournalEventHandler constructor.
-     *
-     * @param PRI  $repository
-     * @param JRI  $journalRepository
-     * @param RGRI $ruleGroupRepository
-     */
-    public function __construct(PRI $repository, JRI $journalRepository, RGRI $ruleGroupRepository)
-    {
-        $this->repository          = $repository;
-        $this->journalRepository   = $journalRepository;
-        $this->ruleGroupRepository = $ruleGroupRepository;
-    }
-
     /**
      * This method grabs all the users rules and processes them.
      *
@@ -69,16 +43,22 @@ class StoredJournalEventHandler
      */
     public function processRules(StoredTransactionJournal $storedJournalEvent): bool
     {
-        // get all the user's rule groups, with the rules, order by 'order'.
         $journal = $storedJournalEvent->journal;
-        $groups  = $this->ruleGroupRepository->getActiveGroups($journal->user);
+
+        // create objects:
+        /** @var RuleGroupRepositoryInterface $ruleGroupRepos */
+        $ruleGroupRepos = app(RuleGroupRepositoryInterface::class);
+        $ruleGroupRepos->setUser($journal->user);
+        $groups         = $ruleGroupRepos->getActiveGroups($journal->user);
 
         /** @var RuleGroup $group */
         foreach ($groups as $group) {
-            $rules = $this->ruleGroupRepository->getActiveStoreRules($group);
+            $rules = $ruleGroupRepos->getActiveStoreRules($group);
             /** @var Rule $rule */
             foreach ($rules as $rule) {
-                $processor = Processor::make($rule);
+                /** @var Processor $processor */
+                $processor = app(Processor::class);
+                $processor->make($rule);
                 $processor->handleTransactionJournal($journal);
 
                 if ($rule->stop_processing) {

@@ -27,22 +27,25 @@ namespace FireflyIII\Http\Controllers\System;
 use Artisan;
 use Exception;
 use FireflyIII\Http\Controllers\Controller;
+use FireflyIII\Support\Http\Controllers\GetConfigurationData;
 use Illuminate\Http\JsonResponse;
 use Laravel\Passport\Passport;
 use Log;
 use phpseclib\Crypt\RSA;
 
 /**
- * @codeCoverageIgnore
  * Class InstallController
+ *
+ * @codeCoverageIgnore
  */
 class InstallController extends Controller
 {
-    /** @var string */
+    use GetConfigurationData;
+    /** @var string Forbidden error */
     public const FORBIDDEN_ERROR = 'Internal PHP function "proc_close" is disabled for your installation. Auto-migration is not possible.';
-    /** @var string */
+    /** @var string Basedir error */
     public const BASEDIR_ERROR = 'Firefly III cannot execute the upgrade commands. It is not allowed to because of an open_basedir restriction.';
-    /** @var string */
+    /** @var string Other errors */
     public const OTHER_ERROR = 'An unknown error prevented Firefly III from executing the upgrade commands. Sorry.';
     /** @noinspection MagicMethodsValidityInspection */
     /** @noinspection PhpMissingParentConstructorInspection */
@@ -55,6 +58,8 @@ class InstallController extends Controller
     }
 
     /**
+     * Show index.
+     *
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
      */
     public function index()
@@ -63,6 +68,8 @@ class InstallController extends Controller
     }
 
     /**
+     * Create specific RSA keys.
+     *
      * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
      */
     public function keys()
@@ -91,6 +98,8 @@ class InstallController extends Controller
     }
 
     /**
+     * Run migration commands.
+     *
      * @return JsonResponse
      */
     public function migrate(): JsonResponse
@@ -118,6 +127,8 @@ class InstallController extends Controller
     }
 
     /**
+     * Do database upgrade.
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function upgrade(): JsonResponse
@@ -143,9 +154,11 @@ class InstallController extends Controller
     }
 
     /**
+     * Do database verification.
+     *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function verify()
+    public function verify(): JsonResponse
     {
         if ($this->hasForbiddenFunctions()) {
             return response()->json(['error' => true, 'message' => self::FORBIDDEN_ERROR]);
@@ -167,27 +180,5 @@ class InstallController extends Controller
         return response()->json(['error' => false, 'message' => 'OK']);
     }
 
-    /**
-     * @return bool
-     */
-    private function hasForbiddenFunctions(): bool
-    {
-        $list      = ['proc_close'];
-        $forbidden = explode(',', ini_get('disable_functions'));
-        $trimmed   = array_map(
-            function (string $value) {
-                return trim($value);
-            }, $forbidden
-        );
-        foreach ($list as $entry) {
-            if (\in_array($entry, $trimmed, true)) {
-                Log::error('Method "%s" is FORBIDDEN, so the console command cannot be executed.');
-
-                return true;
-            }
-        }
-
-        return false;
-    }
 
 }

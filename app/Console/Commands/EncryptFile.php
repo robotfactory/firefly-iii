@@ -1,5 +1,4 @@
 <?php
-
 /**
  * EncryptFile.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -30,6 +29,8 @@ use Illuminate\Console\Command;
 
 /**
  * Class EncryptFile.
+ *
+ * @codeCoverageIgnore
  */
 class EncryptFile extends Command
 {

@@ -33,13 +33,12 @@ use Tests\TestCase;
 class PrependDescriptionTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\TransactionRules\Actions\PrependDescription::__construct()
-     * @covers \FireflyIII\TransactionRules\Actions\PrependDescription::act()
+     * @covers \FireflyIII\TransactionRules\Actions\PrependDescription
      */
     public function testAct(): void
     {
         // get journal, give fixed description
-        $description          = 'text' . random_int(1, 1000);
+        $description          = 'text' . random_int(1, 10000);
         $prepend              = 'prepend' . random_int(1, 1234);
         $journal              = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
         $journal->description = $description;

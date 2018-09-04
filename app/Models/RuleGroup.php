@@ -22,15 +22,28 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Carbon\Carbon;
 use FireflyIII\User;
-use FireflyIII\Models\Rule;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class RuleGroup.
- * @property bool $active
+ *
+ * @property bool       $active
+ * @property User       $user
+ * @property Carbon     $created_at
+ * @property Carbon     $updated_at
+ * @property string     $title
+ * @property string     $text
+ * @property int        $id
+ * @property int        $order
+ * @property Collection $rules
+ * @property string     description
  */
 class RuleGroup extends Model
 {
@@ -49,22 +62,25 @@ class RuleGroup extends Model
             'order'      => 'int',
         ];
 
-    /**
-     * @var array
-     */
+    /** @var array Fields that can be filled */
     protected $fillable = ['user_id', 'order', 'title', 'description', 'active'];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return RuleGroup
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): RuleGroup
     {
         if (auth()->check()) {
             $ruleGroupId = (int)$value;
-            $ruleGroup   = auth()->user()->ruleGroups()->find($ruleGroupId);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var RuleGroup $ruleGroup */
+            $ruleGroup = $user->ruleGroups()->find($ruleGroupId);
             if (null !== $ruleGroup) {
                 return $ruleGroup;
             }
@@ -74,18 +90,18 @@ class RuleGroup extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function rules()
+    public function rules(): HasMany
     {
         return $this->hasMany(Rule::class);
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

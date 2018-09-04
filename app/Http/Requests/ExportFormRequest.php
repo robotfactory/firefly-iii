@@ -30,22 +30,27 @@ use Carbon\Carbon;
 class ExportFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
+        /** @var Carbon $sessionFirst */
         $sessionFirst = clone session('first');
         $first        = $sessionFirst->subDay()->format('Y-m-d');
-        $today        = Carbon::create()->addDay()->format('Y-m-d');
+        $today        = Carbon::now()->addDay()->format('Y-m-d');
         $formats      = implode(',', array_keys(config('firefly.export_formats')));
 
         // fixed

@@ -23,22 +23,27 @@ declare(strict_types=1);
 namespace FireflyIII\Http\Controllers\Report;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Http\Controllers\Controller;
-use FireflyIII\Models\Account;
-use FireflyIII\Models\AccountType;
 use FireflyIII\Models\Transaction;
 use FireflyIII\Models\TransactionType;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\AugumentData;
 use Illuminate\Support\Collection;
+use Log;
+use Throwable;
 
 /**
  * Class ExpenseController
+ *
+ * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 class ExpenseController extends Controller
 {
-    /** @var AccountRepositoryInterface */
+    use AugumentData;
+
+    /** @var AccountRepositoryInterface The account repository */
     protected $accountRepository;
 
     /**
@@ -58,6 +63,8 @@ class ExpenseController extends Controller
         );
     }
 
+
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * Generates the overview per budget.
      *
@@ -67,9 +74,9 @@ class ExpenseController extends Controller
      * @param Carbon     $end
      *
      * @return string
-     * @throws \Throwable
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
-    public function budget(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
+    public function budget(Collection $accounts, Collection $expense, Carbon $start, Carbon $end): string
     {
         // Properties for cache:
         $cache = new CacheProperties;
@@ -83,7 +90,7 @@ class ExpenseController extends Controller
         }
         $combined = $this->combineAccounts($expense);
         $all      = new Collection;
-        foreach ($combined as $name => $combi) {
+        foreach ($combined as $combi) {
             $all = $all->merge($combi);
         }
         // now find spent / earned:
@@ -98,13 +105,21 @@ class ExpenseController extends Controller
             }
             $together[$categoryId]['grand_total'] = bcadd($spentInfo['grand_total'], $together[$categoryId]['grand_total']);
         }
-        unset($spentInfo);
-        $result = view('reports.partials.exp-budgets', compact('together'))->render();
+        try {
+            $result = view('reports.partials.exp-budgets', compact('together'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Could not render category::budget: %s', $e->getMessage()));
+            $result = 'An error prevented Firefly III from rendering. Apologies.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
     }
 
+
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
      * Generates the overview per category (spent and earned).
      *
@@ -114,9 +129,10 @@ class ExpenseController extends Controller
      * @param Carbon     $end
      *
      * @return string
-     * @throws \Throwable
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function category(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
+    public function category(Collection $accounts, Collection $expense, Carbon $start, Carbon $end): string
     {
         // Properties for cache:
         $cache = new CacheProperties;
@@ -130,7 +146,7 @@ class ExpenseController extends Controller
         }
         $combined = $this->combineAccounts($expense);
         $all      = new Collection;
-        foreach ($combined as $name => $combi) {
+        foreach ($combined as $combi) {
             $all = $all->merge($combi);
         }
         // now find spent / earned:
@@ -146,7 +162,6 @@ class ExpenseController extends Controller
             }
             $together[$categoryId]['grand_total'] = bcadd($spentInfo['grand_total'], $together[$categoryId]['grand_total']);
         }
-        unset($spentInfo);
         foreach ($earned as $categoryId => $earnedInfo) {
             if (!isset($together[$categoryId])) {
                 $together[$categoryId]['earned']      = $earnedInfo;
@@ -155,15 +170,22 @@ class ExpenseController extends Controller
             }
             $together[$categoryId]['grand_total'] = bcadd($earnedInfo['grand_total'], $together[$categoryId]['grand_total']);
         }
-
-        $result = view('reports.partials.exp-categories', compact('together'))->render();
+        try {
+            $result = view('reports.partials.exp-categories', compact('together'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Could not render category::expenses: %s', $e->getMessage()));
+            $result = 'An error prevented Firefly III from rendering. Apologies.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
-     * Overview of spending
+     * Overview of spending.
      *
      * @param Collection $accounts
      * @param Collection $expense
@@ -171,7 +193,6 @@ class ExpenseController extends Controller
      * @param Carbon     $end
      *
      * @return array|mixed|string
-     * @throws \Throwable
      */
     public function spent(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
     {
@@ -201,23 +222,32 @@ class ExpenseController extends Controller
                 'earned' => $earned,
             ];
         }
-        $result = view('reports.partials.exp-not-grouped', compact('result'))->render();
+        try {
+            $result = view('reports.partials.exp-not-grouped', compact('result'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Could not render category::expenses: %s', $e->getMessage()));
+            $result = 'An error prevented Firefly III from rendering. Apologies.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
         // for period, get spent and earned for each account (by name)
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * List of top expenses.
+     *
      * @param Collection $accounts
      * @param Collection $expense
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return string
-     * @throws \Throwable
      */
-    public function topExpense(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
+    public function topExpense(Collection $accounts, Collection $expense, Carbon $start, Carbon $end): string
     {
         // Properties for cache:
         $cache = new CacheProperties;
@@ -231,34 +261,42 @@ class ExpenseController extends Controller
         }
         $combined = $this->combineAccounts($expense);
         $all      = new Collection;
-        foreach ($combined as $name => $combi) {
+        foreach ($combined as $combi) {
             $all = $all->merge($combi);
         }
         // get all expenses in period:
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL])->setAccounts($accounts);
         $collector->setOpposingAccounts($all);
-        $set    = $collector->getJournals();
+        $set    = $collector->getTransactions();
         $sorted = $set->sortBy(
             function (Transaction $transaction) {
                 return (float)$transaction->transaction_amount;
             }
         );
-        $result = view('reports.partials.top-transactions', compact('sorted'))->render();
+        try {
+            $result = view('reports.partials.top-transactions', compact('sorted'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Could not render category::topExpense: %s', $e->getMessage()));
+            $result = 'An error prevented Firefly III from rendering. Apologies.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
     }
-
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * List of top income.
+     *
      * @param Collection $accounts
      * @param Collection $expense
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return mixed|string
-     * @throws \Throwable
      */
     public function topIncome(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
     {
@@ -274,64 +312,56 @@ class ExpenseController extends Controller
         }
         $combined = $this->combineAccounts($expense);
         $all      = new Collection;
-        foreach ($combined as $name => $combi) {
+        foreach ($combined as $combi) {
             $all = $all->merge($combi);
         }
         // get all expenses in period:
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::DEPOSIT])->setAccounts($accounts);
         $collector->setOpposingAccounts($all);
-        $set    = $collector->getJournals();
+        $set    = $collector->getTransactions();
         $sorted = $set->sortByDesc(
             function (Transaction $transaction) {
                 return (float)$transaction->transaction_amount;
             }
         );
-        $result = view('reports.partials.top-transactions', compact('sorted'))->render();
+        try {
+            $result = view('reports.partials.top-transactions', compact('sorted'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::error(sprintf('Could not render category::topIncome: %s', $e->getMessage()));
+            $result = 'An error prevented Firefly III from rendering. Apologies.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
     }
 
+
+
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
-     * @param Collection $accounts
+     * Group by category (earnings).
      *
-     * @return array
-     */
-    protected function combineAccounts(Collection $accounts): array
-    {
-        $combined = [];
-        /** @var Account $expenseAccount */
-        foreach ($accounts as $expenseAccount) {
-            $collection = new Collection;
-            $collection->push($expenseAccount);
-
-            $revenue = $this->accountRepository->findByName($expenseAccount->name, [AccountType::REVENUE]);
-            if (null !== $revenue) {
-                $collection->push($revenue);
-            }
-            $combined[$expenseAccount->name] = $collection;
-        }
-
-        return $combined;
-    }
-
-    /**
      * @param Collection $assets
      * @param Collection $opposing
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return array
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    protected function earnedByCategory(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array
+    protected function earnedByCategory(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array // get data + augment with info
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::DEPOSIT])->setAccounts($assets);
         $collector->setOpposingAccounts($opposing)->withCategoryInformation();
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         $sum = [];
         // loop to support multi currency
         foreach ($set as $transaction) {
@@ -378,7 +408,10 @@ class ExpenseController extends Controller
         return $sum;
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Earned in period for accounts.
+     *
      * @param Collection $assets
      * @param Collection $opposing
      * @param Carbon     $start
@@ -386,13 +419,13 @@ class ExpenseController extends Controller
      *
      * @return array
      */
-    protected function earnedInPeriod(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array
+    protected function earnedInPeriod(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array // get data + augment with info
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::DEPOSIT])->setAccounts($assets);
         $collector->setOpposingAccounts($opposing);
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         $sum = [
             'grand_sum'    => '0',
             'per_currency' => [],
@@ -420,21 +453,26 @@ class ExpenseController extends Controller
         return $sum;
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Spent by budget.
+     *
      * @param Collection $assets
      * @param Collection $opposing
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return array
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    protected function spentByBudget(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array
+    protected function spentByBudget(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array // get data + augment with info
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL])->setAccounts($assets);
         $collector->setOpposingAccounts($opposing)->withBudgetInformation();
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         $sum = [];
         // loop to support multi currency
         foreach ($set as $transaction) {
@@ -481,21 +519,27 @@ class ExpenseController extends Controller
         return $sum;
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Spent by category.
+     *
      * @param Collection $assets
      * @param Collection $opposing
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return array
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    protected function spentByCategory(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array
+    protected function spentByCategory(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array // get data + augment with info
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL])->setAccounts($assets);
         $collector->setOpposingAccounts($opposing)->withCategoryInformation();
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         $sum = [];
         // loop to support multi currency
         foreach ($set as $transaction) {
@@ -542,7 +586,10 @@ class ExpenseController extends Controller
         return $sum;
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Spent in a period.
+     *
      * @param Collection $assets
      * @param Collection $opposing
      * @param Carbon     $start
@@ -550,13 +597,13 @@ class ExpenseController extends Controller
      *
      * @return array
      */
-    protected function spentInPeriod(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array
+    protected function spentInPeriod(Collection $assets, Collection $opposing, Carbon $start, Carbon $end): array // get data + augment with info
     {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL])->setAccounts($assets);
         $collector->setOpposingAccounts($opposing);
-        $set = $collector->getJournals();
+        $set = $collector->getTransactions();
         $sum = [
             'grand_sum'    => '0',
             'per_currency' => [],

@@ -45,21 +45,22 @@ class Installer
      * @param  \Closure                 $next
      *
      * @return mixed
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function handle($request, Closure $next)
     {
-        if (env('APP_ENV') === 'testing') {
+        if ('testing' === env('APP_ENV')) {
             return $next($request);
         }
         $url    = $request->url();
         $strpos = stripos($url, '/install');
-        if (!($strpos === false)) {
+        if (!(false === $strpos)) {
             Log::debug(sprintf('URL is %s, will NOT run installer middleware', $url));
 
             return $next($request);
         }
-        // Log::debug(sprintf('URL is %s, will run installer middleware', $url));
-
         // no tables present?
         try {
             DB::table('users')->count();
@@ -96,22 +97,26 @@ class Installer
     }
 
     /**
+     * Is access denied error.
+     *
      * @param string $message
      *
      * @return bool
      */
     protected function isAccessDenied(string $message): bool
     {
-        return !(stripos($message, 'Access denied') === false);
+        return !(false === stripos($message, 'Access denied'));
     }
 
     /**
+     * Is no tables exist error.
+     *
      * @param string $message
      *
      * @return bool
      */
     protected function noTablesExist(string $message): bool
     {
-        return !(stripos($message, 'Base table or view not found') === false);
+        return !(false === stripos($message, 'Base table or view not found'));
     }
 }

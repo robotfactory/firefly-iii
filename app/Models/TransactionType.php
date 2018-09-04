@@ -23,13 +23,15 @@ declare(strict_types=1);
 namespace FireflyIII\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use FireflyIII\Models\TransactionJournal;
 
 /**
  * Class TransactionType.
+ *
  * @property string $type
+ * @property int    $id
  */
 class TransactionType extends Model
 {
@@ -66,14 +68,16 @@ class TransactionType extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['type'];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $type
      *
      * @return Model|null|static
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $type): TransactionType
     {
@@ -125,9 +129,9 @@ class TransactionType extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function transactionJournals()
+    public function transactionJournals(): HasMany
     {
         return $this->hasMany(TransactionJournal::class);
     }

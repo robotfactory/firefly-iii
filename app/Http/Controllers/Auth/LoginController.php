@@ -18,6 +18,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+/** @noinspection PhpDynamicAsStaticMethodCallInspection */
 declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers\Auth;
@@ -31,12 +32,13 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 
 /**
- * @codeCoverageIgnore
  * Class LoginController
  *
  * This controller handles authenticating users for the application and
  * redirecting them to your home screen. The controller uses a trait
  * to conveniently provide its functionality to your applications.
+ *
+ * @codeCoverageIgnore
  */
 class LoginController extends Controller
 {
@@ -59,12 +61,11 @@ class LoginController extends Controller
     }
 
     /**
-     * Handle a login request to the application.
+     * Log in a user.
      *
      * @param Request $request
      *
-     * @return \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\Response
-     *
+     * @return \Illuminate\Http\Response|\Symfony\Component\HttpFoundation\Response|void
      * @throws \Illuminate\Validation\ValidationException
      */
     public function login(Request $request)
@@ -77,6 +78,8 @@ class LoginController extends Controller
         if ($this->hasTooManyLoginAttempts($request)) {
             $this->fireLockoutEvent($request);
 
+            /** @noinspection PhpInconsistentReturnPointsInspection */
+            /** @noinspection PhpVoidFunctionResultUsedInspection */
             return $this->sendLockoutResponse($request);
         }
 
@@ -84,6 +87,8 @@ class LoginController extends Controller
             // user is logged in. Save in session if the user requested session to be remembered:
             $request->session()->put('remember_login', $request->filled('remember'));
 
+            /** @noinspection PhpInconsistentReturnPointsInspection */
+            /** @noinspection PhpVoidFunctionResultUsedInspection */
             return $this->sendLoginResponse($request);
         }
 
@@ -92,6 +97,8 @@ class LoginController extends Controller
         // user surpasses their maximum number of attempts they will get locked out.
         $this->incrementLoginAttempts($request);
 
+        /** @noinspection PhpInconsistentReturnPointsInspection */
+        /** @noinspection PhpVoidFunctionResultUsedInspection */
         return $this->sendFailedLoginResponse($request);
     }
 
@@ -123,7 +130,7 @@ class LoginController extends Controller
     public function showLoginForm(Request $request)
     {
         $count = DB::table('users')->count();
-        if ($count === 0) {
+        if (0 === $count) {
             return redirect(route('register')); // @codeCoverageIgnore
         }
 

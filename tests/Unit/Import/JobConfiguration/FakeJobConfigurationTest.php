@@ -26,6 +26,7 @@ namespace Tests\Unit\Import\JobConfiguration;
 use FireflyIII\Import\JobConfiguration\FakeJobConfiguration;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
+use Log;
 use Mockery;
 use Tests\TestCase;
 
@@ -35,21 +36,36 @@ use Tests\TestCase;
 class FakeJobConfigurationTest extends TestCase
 {
     /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+
+    /**
      * No config, job is new.
      *
      * @covers \FireflyIII\Import\JobConfiguration\FakeJobConfiguration
      */
     public function testCC(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'A_unit_' . random_int(1, 1000);
+        $job->key           = 'A_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
         $job->file_type     = '';
         $job->configuration = [];
         $job->save();
+
+
 
         // should be false:
         $configurator = new FakeJobConfiguration;
@@ -64,9 +80,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCAlbumFalse(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'B_unit_' . random_int(1, 1000);
+        $job->key           = 'B_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'needs_config';
         $job->provider      = 'fake';
@@ -87,9 +106,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCApplyRules(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'C_unit_' . random_int(1, 1000);
+        $job->key           = 'C_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -112,9 +134,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCBadAlbum(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'D_unit_' . random_int(1, 1000);
+        $job->key           = 'D_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'config';
         $job->provider      = 'fake';
@@ -140,9 +165,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCBadInfo(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'E_unit_' . random_int(1, 1000);
+        $job->key           = 'E_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -167,9 +195,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCGoodAlbum(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'f_unit_' . random_int(1, 1000);
+        $job->key           = 'f_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'config';
         $job->provider      = 'fake';
@@ -195,9 +226,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testCCGoodNewInfo(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'g_unit_' . random_int(1, 1000);
+        $job->key           = 'g_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -224,7 +258,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'h_unit_' . random_int(1, 1000);
+        $job->key           = 'h_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -259,7 +293,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'i_unit_' . random_int(1, 1000);
+        $job->key           = 'i_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -294,7 +328,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'j_unit_' . random_int(1, 1000);
+        $job->key           = 'j_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -329,7 +363,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'k_unit_' . random_int(1, 1000);
+        $job->key           = 'k_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -364,7 +398,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'l_unit_' . random_int(1, 1000);
+        $job->key           = 'l_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -399,7 +433,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'm_unit_' . random_int(1, 1000);
+        $job->key           = 'm_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -434,7 +468,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'n_unit_' . random_int(1, 1000);
+        $job->key           = 'n_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -469,7 +503,7 @@ class FakeJobConfigurationTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'o_unit_' . random_int(1, 1000);
+        $job->key           = 'o_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -502,9 +536,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testGetNextViewAlbum(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'p_unit_' . random_int(1, 1000);
+        $job->key           = 'p_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'not_new';
         $job->provider      = 'fake';
@@ -526,9 +563,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testGetNextViewArtist(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'p_unit_' . random_int(1, 1000);
+        $job->key           = 'p_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -550,9 +590,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testGetNextViewRules(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'p_unit_' . random_int(1, 1000);
+        $job->key           = 'p_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -574,9 +617,12 @@ class FakeJobConfigurationTest extends TestCase
      */
     public function testGetNextViewSong(): void
     {
+        $jobRepos           = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'p_unit_' . random_int(1, 1000);
+        $job->key           = 'p_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';

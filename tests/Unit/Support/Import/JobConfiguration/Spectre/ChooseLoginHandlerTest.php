@@ -38,6 +38,7 @@ use FireflyIII\Support\Import\JobConfiguration\Spectre\ChooseLoginHandler;
 use Mockery;
 use Preferences;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class ChooseLoginHandlerTest
@@ -45,13 +46,23 @@ use Tests\TestCase;
 class ChooseLoginHandlerTest extends TestCase
 {
     /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+    /**
      * @covers \FireflyIII\Support\Import\JobConfiguration\Spectre\ChooseLoginHandler
      */
     public function testCCFalse(): void
     {
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'slh-A' . random_int(1, 1000);
+        $job->key           = 'slh-A' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -74,7 +85,7 @@ class ChooseLoginHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'slh-B' . random_int(1, 1000);
+        $job->key           = 'slh-B' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -98,7 +109,7 @@ class ChooseLoginHandlerTest extends TestCase
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'slh-C' . random_int(1, 1000);
+        $job->key           = 'slh-C' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -138,7 +149,7 @@ class ChooseLoginHandlerTest extends TestCase
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'slh-C' . random_int(1, 1000);
+        $job->key           = 'slh-C' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';
@@ -195,6 +206,8 @@ class ChooseLoginHandlerTest extends TestCase
      */
     public function testGetNextData(): void
     {
+        $repository = $this->mock(ImportJobRepositoryInterface::class);
+        $repository->shouldReceive('setUser')->once();
         // fake login:
         $holder  = new Holder([]);
         $attempt = new Attempt(
@@ -256,7 +269,7 @@ class ChooseLoginHandlerTest extends TestCase
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'slh-C' . random_int(1, 1000);
+        $job->key           = 'slh-C' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'spectre';

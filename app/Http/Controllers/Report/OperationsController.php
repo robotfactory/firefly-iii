@@ -27,22 +27,46 @@ use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Repositories\Account\AccountTaskerInterface;
 use FireflyIII\Support\CacheProperties;
 use Illuminate\Support\Collection;
+use Log;
+use Throwable;
 
 /**
  * Class OperationsController.
  */
 class OperationsController extends Controller
 {
+
+    /** @var AccountTaskerInterface Some specific account things. */
+    private $tasker;
+
     /**
-     * @param AccountTaskerInterface $tasker
-     * @param Collection             $accounts
-     * @param Carbon                 $start
-     * @param Carbon                 $end
+     * OperationsController constructor.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+
+        // translations:
+        $this->middleware(
+            function ($request, $next) {
+                $this->tasker = app(AccountTaskerInterface::class);
+
+                return $next($request);
+            }
+        );
+    }
+
+
+    /**
+     * View of income and expense.
+     *
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
      *
      * @return mixed|string
-     * @throws \Throwable
      */
-    public function expenses(AccountTaskerInterface $tasker, Collection $accounts, Carbon $start, Carbon $end)
+    public function expenses(Collection $accounts, Carbon $start, Carbon $end)
     {
         // chart properties for cache:
         $cache = new CacheProperties;
@@ -53,24 +77,31 @@ class OperationsController extends Controller
         if ($cache->has()) {
             return $cache->get(); // @codeCoverageIgnore
         }
-        $entries = $tasker->getExpenseReport($start, $end, $accounts);
+        $entries = $this->tasker->getExpenseReport($start, $end, $accounts);
         $type    = 'expense-entry';
-        $result  = view('reports.partials.income-expenses', compact('entries', 'type'))->render();
+        try {
+            $result = view('reports.partials.income-expenses', compact('entries', 'type'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::debug(sprintf('Could not render reports.partials.income-expense: %s', $e->getMessage()));
+            $result = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;
     }
 
     /**
-     * @param AccountTaskerInterface $tasker
-     * @param Collection             $accounts
-     * @param Carbon                 $start
-     * @param Carbon                 $end
+     * View of income.
+     *
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
      *
      * @return string
-     * @throws \Throwable
      */
-    public function income(AccountTaskerInterface $tasker, Collection $accounts, Carbon $start, Carbon $end)
+    public function income(Collection $accounts, Carbon $start, Carbon $end): string
     {
         // chart properties for cache:
         $cache = new CacheProperties;
@@ -81,9 +112,16 @@ class OperationsController extends Controller
         if ($cache->has()) {
             return $cache->get(); // @codeCoverageIgnore
         }
-        $entries = $tasker->getIncomeReport($start, $end, $accounts);
+        $entries = $this->tasker->getIncomeReport($start, $end, $accounts);
         $type    = 'income-entry';
-        $result  = view('reports.partials.income-expenses', compact('entries', 'type'))->render();
+        try {
+            $result = view('reports.partials.income-expenses', compact('entries', 'type'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::debug(sprintf('Could not render reports.partials.income-expenses: %s', $e->getMessage()));
+            $result = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
 
         $cache->store($result);
 
@@ -91,15 +129,15 @@ class OperationsController extends Controller
     }
 
     /**
-     * @param AccountTaskerInterface $tasker
-     * @param Collection             $accounts
-     * @param Carbon                 $start
-     * @param Carbon                 $end
+     * Overview of income and expense.
+     *
+     * @param Collection $accounts
+     * @param Carbon     $start
+     * @param Carbon     $end
      *
      * @return mixed|string
-     * @throws \Throwable
      */
-    public function operations(AccountTaskerInterface $tasker, Collection $accounts, Carbon $start, Carbon $end)
+    public function operations(Collection $accounts, Carbon $start, Carbon $end)
     {
         // chart properties for cache:
         $cache = new CacheProperties;
@@ -111,8 +149,8 @@ class OperationsController extends Controller
             return $cache->get(); // @codeCoverageIgnore
         }
 
-        $incomes   = $tasker->getIncomeReport($start, $end, $accounts);
-        $expenses  = $tasker->getExpenseReport($start, $end, $accounts);
+        $incomes   = $this->tasker->getIncomeReport($start, $end, $accounts);
+        $expenses  = $this->tasker->getExpenseReport($start, $end, $accounts);
         $incomeSum = array_sum(
             array_map(
                 function ($item) {
@@ -130,8 +168,14 @@ class OperationsController extends Controller
                 $expenses
             )
         );
-
-        $result = view('reports.partials.operations', compact('incomeSum', 'expensesSum'))->render();
+        try {
+            $result = view('reports.partials.operations', compact('incomeSum', 'expensesSum'))->render();
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            Log::debug(sprintf('Could not render reports.partials.operations: %s', $e->getMessage()));
+            $result = 'Could not render view.';
+        }
+        // @codeCoverageIgnoreEnd
         $cache->store($result);
 
         return $result;

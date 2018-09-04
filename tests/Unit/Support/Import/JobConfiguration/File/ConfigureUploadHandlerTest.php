@@ -30,12 +30,21 @@ use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureUploadHandler;
 use Mockery;
 use Tests\TestCase;
-
+use Log;
 /**
  * Class ConfigureUploadHandlerTest
  */
 class ConfigureUploadHandlerTest extends TestCase
 {
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
     /**
      * @covers \FireflyIII\Support\Import\JobConfiguration\File\ConfigureUploadHandler
      */
@@ -43,7 +52,7 @@ class ConfigureUploadHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'upload-B' . random_int(1, 1000);
+        $job->key           = 'upload-B' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -92,7 +101,7 @@ class ConfigureUploadHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'upload-B' . random_int(1, 1000);
+        $job->key           = 'upload-B' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -140,7 +149,7 @@ class ConfigureUploadHandlerTest extends TestCase
     {
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'upload-A' . random_int(1, 1000);
+        $job->key           = 'upload-A' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';

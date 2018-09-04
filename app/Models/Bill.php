@@ -22,21 +22,40 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Crypt;
 use FireflyIII\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class Bill.
  *
- * @property bool   $active
- * @property int    $transaction_currency_id
- * @property string $amount_min
- * @property string $amount_max
+ * @property bool                $active
+ * @property int                 $transaction_currency_id
+ * @property string              $amount_min
+ * @property string              $amount_max
+ * @property int                 $id
+ * @property string              $name
+ * @property Collection          $notes
+ * @property TransactionCurrency $transactionCurrency
+ * @property Carbon              $created_at
+ * @property Carbon              $updated_at
+ * @property Carbon              $date
+ * @property string              $repeat_freq
+ * @property int                 $skip
+ * @property bool                $automatch
+ * @property User                $user
+ * @property string              $match
+ * @property bool                match_encrypted
+ * @property bool                name_encrypted
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class Bill extends Model
 {
@@ -58,28 +77,30 @@ class Bill extends Model
             'name_encrypted'  => 'boolean',
             'match_encrypted' => 'boolean',
         ];
-    /**
-     * @var array
-     */
+
+    /** @var array Fields that can be filled */
     protected $fillable
         = ['name', 'match', 'amount_min', 'match_encrypted', 'name_encrypted', 'user_id', 'amount_max', 'date', 'repeat_freq', 'skip',
            'automatch', 'active', 'transaction_currency_id'];
-    /**
-     * @var array
-     */
+    /** @var array Hidden from view */
     protected $hidden = ['amount_min_encrypted', 'amount_max_encrypted', 'name_encrypted', 'match_encrypted'];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return Bill
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): Bill
     {
         if (auth()->check()) {
             $billId = (int)$value;
-            $bill   = auth()->user()->bills()->find($billId);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var Bill $bill */
+            $bill = $user->bills()->find($billId);
             if (null !== $bill) {
                 return $bill;
             }
@@ -89,9 +110,9 @@ class Bill extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
     }
@@ -104,7 +125,7 @@ class Bill extends Model
      * @return string
      * @throws \Illuminate\Contracts\Encryption\DecryptException
      */
-    public function getMatchAttribute($value)
+    public function getMatchAttribute($value): string
     {
         if (1 === (int)$this->match_encrypted) {
             return Crypt::decrypt($value);
@@ -118,10 +139,10 @@ class Bill extends Model
      *
      * @param $value
      *
-     * @return string
+     * @return string|null
      * @throws \Illuminate\Contracts\Encryption\DecryptException
      */
-    public function getNameAttribute($value)
+    public function getNameAttribute($value): ?string
     {
         if (1 === (int)$this->name_encrypted) {
             return Crypt::decrypt($value);
@@ -134,7 +155,7 @@ class Bill extends Model
      * @codeCoverageIgnore
      * Get all of the notes.
      */
-    public function notes()
+    public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'noteable');
     }
@@ -144,7 +165,7 @@ class Bill extends Model
      *
      * @param $value
      */
-    public function setAmountMaxAttribute($value)
+    public function setAmountMaxAttribute($value): void
     {
         $this->attributes['amount_max'] = (string)$value;
     }
@@ -154,7 +175,7 @@ class Bill extends Model
      *
      * @codeCoverageIgnore
      */
-    public function setAmountMinAttribute($value)
+    public function setAmountMinAttribute($value): void
     {
         $this->attributes['amount_min'] = (string)$value;
     }
@@ -165,7 +186,7 @@ class Bill extends Model
      * @codeCoverageIgnore
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setMatchAttribute($value)
+    public function setMatchAttribute($value): void
     {
         $encrypt                             = config('firefly.encryption');
         $this->attributes['match']           = $encrypt ? Crypt::encrypt($value) : $value;
@@ -178,7 +199,7 @@ class Bill extends Model
      * @codeCoverageIgnore
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setNameAttribute($value)
+    public function setNameAttribute($value): void
     {
         $encrypt                            = config('firefly.encryption');
         $this->attributes['name']           = $encrypt ? Crypt::encrypt($value) : $value;

@@ -23,7 +23,7 @@ declare(strict_types=1);
 namespace FireflyIII\Support\Search;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\InternalTransferFilter;
 use FireflyIII\Models\Transaction;
 use FireflyIII\User;
@@ -63,7 +63,7 @@ class Search implements SearchInterface
     public function getWordsAsString(): string
     {
         $string = implode(' ', $this->words);
-        if (0 === \strlen($string)) {
+        if ('' === $string) {
             return \is_string($this->originalQuery) ? $this->originalQuery : '';
         }
 
@@ -81,7 +81,7 @@ class Search implements SearchInterface
     /**
      * @param string $query
      */
-    public function parseQuery(string $query)
+    public function parseQuery(string $query): void
     {
         $filteredQuery       = $query;
         $this->originalQuery = $query;
@@ -111,8 +111,8 @@ class Search implements SearchInterface
         $result    = new Collection();
         $startTime = microtime(true);
         do {
-            /** @var JournalCollectorInterface $collector */
-            $collector = app(JournalCollectorInterface::class);
+            /** @var TransactionCollectorInterface $collector */
+            $collector = app(TransactionCollectorInterface::class);
             $collector->setAllAssetAccounts()->setLimit($pageSize)->setPage($page)->withOpposingAccount();
             if ($this->hasModifiers()) {
                 $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
@@ -122,7 +122,7 @@ class Search implements SearchInterface
             $collector = $this->applyModifiers($collector);
 
             $collector->removeFilter(InternalTransferFilter::class);
-            $set = $collector->getPaginatedJournals()->getCollection();
+            $set = $collector->getPaginatedTransactions()->getCollection();
 
             Log::debug(sprintf('Found %d journals to check. ', $set->count()));
 
@@ -171,7 +171,7 @@ class Search implements SearchInterface
     /**
      * @param int $limit
      */
-    public function setLimit(int $limit)
+    public function setLimit(int $limit): void
     {
         $this->limit = $limit;
     }
@@ -179,17 +179,18 @@ class Search implements SearchInterface
     /**
      * @param User $user
      */
-    public function setUser(User $user)
+    public function setUser(User $user): void
     {
         $this->user = $user;
     }
 
     /**
-     * @param JournalCollectorInterface $collector
+     * @param TransactionCollectorInterface $collector
      *
-     * @return JournalCollectorInterface
+     * @return TransactionCollectorInterface
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
-    private function applyModifiers(JournalCollectorInterface $collector): JournalCollectorInterface
+    private function applyModifiers(TransactionCollectorInterface $collector): TransactionCollectorInterface
     {
         foreach ($this->modifiers as $modifier) {
             switch ($modifier['type']) {
@@ -242,13 +243,13 @@ class Search implements SearchInterface
     /**
      * @param string $string
      */
-    private function extractModifier(string $string)
+    private function extractModifier(string $string): void
     {
         $parts = explode(':', $string);
-        if (2 === \count($parts) && \strlen(trim((string)$parts[0])) > 0 && \strlen(trim((string)$parts[1]))) {
+        if (2 === \count($parts) && '' !== trim((string)$parts[1]) && \strlen(trim((string)$parts[0])) > 0) {
             $type  = trim((string)$parts[0]);
             $value = trim((string)$parts[1]);
-            if (\in_array($type, $this->validModifiers)) {
+            if (\in_array($type, $this->validModifiers, true)) {
                 // filter for valid type
                 $this->modifiers->push(['type' => $type, 'value' => $value]);
             }
@@ -292,9 +293,9 @@ class Search implements SearchInterface
      *
      * @return bool
      */
-    private function strposArray(string $haystack, array $needle)
+    private function strposArray(string $haystack, array $needle): bool
     {
-        if (0 === \strlen($haystack)) {
+        if ('' === $haystack) {
             return false;
         }
         foreach ($needle as $what) {

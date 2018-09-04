@@ -25,6 +25,7 @@ namespace FireflyIII\Repositories\LinkType;
 use FireflyIII\Models\LinkType;
 use FireflyIII\Models\TransactionJournal;
 use FireflyIII\Models\TransactionJournalLink;
+use FireflyIII\User;
 use Illuminate\Support\Collection;
 
 /**
@@ -45,7 +46,7 @@ interface LinkTypeRepositoryInterface
      *
      * @return bool
      */
-    public function destroy(LinkType $linkType, LinkType $moveTo): bool;
+    public function destroy(LinkType $linkType, LinkType $moveTo = null): bool;
 
     /**
      * @param TransactionJournalLink $link
@@ -55,11 +56,13 @@ interface LinkTypeRepositoryInterface
     public function destroyLink(TransactionJournalLink $link): bool;
 
     /**
-     * @param int $id
+     * Find link type by name.
      *
-     * @return LinkType
+     * @param string|null $name
+     *
+     * @return LinkType|null
      */
-    public function find(int $id): LinkType;
+    public function findByName(string $name = null): ?LinkType;
 
     /**
      * Check if link exists between journals.
@@ -72,9 +75,34 @@ interface LinkTypeRepositoryInterface
     public function findLink(TransactionJournal $one, TransactionJournal $two): bool;
 
     /**
+     * @param int $linkTypeId
+     *
+     * @return LinkType|null
+     */
+    public function findNull(int $linkTypeId): ?LinkType;
+
+    /**
+     * See if such a link already exists (and get it).
+     *
+     * @param LinkType           $linkType
+     * @param TransactionJournal $inward
+     * @param TransactionJournal $outward
+     *
+     * @return TransactionJournalLink|null
+     */
+    public function findSpecificLink(LinkType $linkType, TransactionJournal $inward, TransactionJournal $outward): ?TransactionJournalLink;
+
+    /**
      * @return Collection
      */
     public function get(): Collection;
+
+    /**
+     * @param LinkType|null $linkType
+     *
+     * @return Collection
+     */
+    public function getJournalLinks(LinkType $linkType = null): Collection;
 
     /**
      * Return list of existing connections.
@@ -84,6 +112,13 @@ interface LinkTypeRepositoryInterface
      * @return Collection
      */
     public function getLinks(TransactionJournal $journal): Collection;
+
+    /**
+     * Set the user for this instance.
+     *
+     * @param User $user
+     */
+    public function setUser(User $user): void;
 
     /**
      * @param array $data
@@ -96,12 +131,12 @@ interface LinkTypeRepositoryInterface
      * Store link between two journals.
      *
      * @param array              $information
-     * @param TransactionJournal $left
-     * @param TransactionJournal $right
+     * @param TransactionJournal $inward
+     * @param TransactionJournal $outward
      *
-     * @return mixed
+     * @return TransactionJournalLink|null
      */
-    public function storeLink(array $information, TransactionJournal $left, TransactionJournal $right): TransactionJournalLink;
+    public function storeLink(array $information, TransactionJournal $inward, TransactionJournal $outward): ?TransactionJournalLink;
 
     /**
      * @param TransactionJournalLink $link
@@ -117,4 +152,14 @@ interface LinkTypeRepositoryInterface
      * @return LinkType
      */
     public function update(LinkType $linkType, array $data): LinkType;
+
+    /**
+     * Update an existing transaction journal link.
+     *
+     * @param TransactionJournalLink $journalLink
+     * @param array                  $data
+     *
+     * @return TransactionJournalLink
+     */
+    public function updateLink(TransactionJournalLink $journalLink, array $data): TransactionJournalLink;
 }

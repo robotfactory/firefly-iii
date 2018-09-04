@@ -29,22 +29,17 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Class RequestedNewPassword.
+ * @codeCoverageIgnore
  */
 class RequestedNewPassword extends Event
 {
     use SerializesModels;
 
-    /**
-     * @var string
-     */
+    /** @var string The users IP address */
     public $ipAddress;
-    /**
-     * @var string
-     */
+    /** @var string The token */
     public $token;
-    /**
-     * @var User
-     */
+    /** @var User The user */
     public $user;
 
     /**

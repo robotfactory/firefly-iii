@@ -28,10 +28,10 @@ namespace FireflyIII\Import\JobConfiguration;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
-use FireflyIII\Support\Import\JobConfiguration\File\FileConfigurationInterface;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureMappingHandler;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureRolesHandler;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureUploadHandler;
+use FireflyIII\Support\Import\JobConfiguration\File\FileConfigurationInterface;
 use FireflyIII\Support\Import\JobConfiguration\File\NewFileJobHandler;
 use Illuminate\Support\MessageBag;
 
@@ -40,9 +40,9 @@ use Illuminate\Support\MessageBag;
  */
 class FileJobConfiguration implements JobConfigurationInterface
 {
-    /** @var ImportJob */
+    /** @var ImportJob The import job */
     private $importJob;
-    /** @var ImportJobRepositoryInterface */
+    /** @var ImportJobRepositoryInterface Import job repository */
     private $repository;
 
     /**
@@ -52,7 +52,7 @@ class FileJobConfiguration implements JobConfigurationInterface
      */
     public function configurationComplete(): bool
     {
-        return $this->importJob->stage === 'ready_to_run';
+        return 'ready_to_run' === $this->importJob->stage;
     }
 
     /**
@@ -91,6 +91,8 @@ class FileJobConfiguration implements JobConfigurationInterface
      *
      * @throws FireflyException
      * @return string
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function getNextView(): string
     {
@@ -99,13 +101,10 @@ class FileJobConfiguration implements JobConfigurationInterface
                 return 'import.file.new';
             case 'configure-upload':
                 return 'import.file.configure-upload';
-                break;
             case 'roles':
                 return 'import.file.roles';
-                break;
             case 'map':
                 return 'import.file.map';
-                break;
             default:
                 // @codeCoverageIgnoreStart
                 throw new FireflyException(
@@ -116,11 +115,13 @@ class FileJobConfiguration implements JobConfigurationInterface
     }
 
     /**
+     * Set import job.
+     *
      * @param ImportJob $importJob
      */
     public function setImportJob(ImportJob $importJob): void
     {
-        $this->importJob = $importJob;
+        $this->importJob  = $importJob;
         $this->repository = app(ImportJobRepositoryInterface::class);
         $this->repository->setUser($importJob->user);
     }
@@ -130,6 +131,8 @@ class FileJobConfiguration implements JobConfigurationInterface
      *
      * @return FileConfigurationInterface
      * @throws FireflyException
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     private function getConfigurationObject(): FileConfigurationInterface
     {

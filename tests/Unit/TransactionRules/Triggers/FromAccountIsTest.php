@@ -23,7 +23,9 @@ declare(strict_types=1);
 namespace Tests\Unit\TransactionRules\Triggers;
 
 use FireflyIII\Models\TransactionJournal;
+use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
 use FireflyIII\TransactionRules\Triggers\FromAccountIs;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 /**
@@ -32,17 +34,18 @@ use Tests\TestCase;
 class FromAccountIsTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs
      */
     public function testTriggered(): void
     {
-        $count = 0;
-        while ($count === 0) {
-            $journal     = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
-            $count       = $journal->transactions()->where('amount', '<', 0)->count();
-            $transaction = $journal->transactions()->where('amount', '<', 0)->first();
-        }
-        $account     = $transaction->account;
+        $repository = $this->mock(JournalRepositoryInterface::class);
+
+        /** @var TransactionJournal $journal */
+        $journal    = $this->user()->transactionJournals()->inRandomOrder()->first();
+        $account    = $this->user()->accounts()->inRandomOrder()->first();
+        $collection = new Collection([$account]);
+        $repository->shouldReceive('getJournalSourceAccounts')->once()->andReturn($collection);
+
 
         $trigger = FromAccountIs::makeFromStrings($account->name, false);
         $result  = $trigger->triggered($journal);
@@ -50,11 +53,17 @@ class FromAccountIsTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs::triggered
+     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs
      */
     public function testTriggeredNot(): void
     {
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
+        $repository = $this->mock(JournalRepositoryInterface::class);
+
+        /** @var TransactionJournal $journal */
+        $journal    = $this->user()->transactionJournals()->inRandomOrder()->first();
+        $account    = $this->user()->accounts()->inRandomOrder()->first();
+        $collection = new Collection([$account]);
+        $repository->shouldReceive('getJournalSourceAccounts')->once()->andReturn($collection);
 
         $trigger = FromAccountIs::makeFromStrings('some name' . random_int(1, 234), false);
         $result  = $trigger->triggered($journal);
@@ -62,32 +71,35 @@ class FromAccountIsTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs
      */
     public function testWillMatchEverythingEmpty(): void
     {
-        $value  = '';
-        $result = FromAccountIs::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = '';
+        $result     = FromAccountIs::willMatchEverything($value);
         $this->assertTrue($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs
      */
     public function testWillMatchEverythingNotNull(): void
     {
-        $value  = 'x';
-        $result = FromAccountIs::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = 'x';
+        $result     = FromAccountIs::willMatchEverything($value);
         $this->assertFalse($result);
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs::willMatchEverything
+     * @covers \FireflyIII\TransactionRules\Triggers\FromAccountIs
      */
     public function testWillMatchEverythingNull(): void
     {
-        $value  = null;
-        $result = FromAccountIs::willMatchEverything($value);
+        $repository = $this->mock(JournalRepositoryInterface::class);
+        $value      = null;
+        $result     = FromAccountIs::willMatchEverything($value);
         $this->assertTrue($result);
     }
 }

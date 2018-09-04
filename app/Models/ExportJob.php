@@ -24,6 +24,7 @@ namespace FireflyIII\Models;
 
 use FireflyIII\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -31,10 +32,17 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  *
  * @property User   $user
  * @property string $key
+ * @property int    $user_id
+ * @property string status
+ * @property int    id
  */
 class ExportJob extends Model
 {
-    /** @var array */
+    /**
+     * The attributes that should be casted to native types.
+     *
+     * @var array
+     */
     protected $casts
         = [
             'created_at' => 'datetime',
@@ -42,6 +50,8 @@ class ExportJob extends Model
         ];
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return ExportJob
@@ -51,8 +61,11 @@ class ExportJob extends Model
     public static function routeBinder(string $value): ExportJob
     {
         if (auth()->check()) {
-            $key       = trim($value);
-            $exportJob = auth()->user()->exportJobs()->where('key', $key)->first();
+            $key = trim($value);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var ExportJob $exportJob */
+            $exportJob = $user->exportJobs()->where('key', $key)->first();
             if (null !== $exportJob) {
                 return $exportJob;
             }
@@ -61,21 +74,27 @@ class ExportJob extends Model
     }
 
     /**
-     * @codeCoverageIgnore
+     * Change the status of this export job.
      *
      * @param $status
+     *
+     * @deprecated
+     * @codeCoverageIgnore
      */
-    public function change($status)
+    public function change($status): void
     {
         $this->status = $status;
         $this->save();
     }
 
     /**
+     * Returns the user this objects belongs to.
+     *
+     *
+     * @return BelongsTo
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

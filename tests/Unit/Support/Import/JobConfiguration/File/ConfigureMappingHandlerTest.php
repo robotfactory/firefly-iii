@@ -35,6 +35,7 @@ use FireflyIII\Support\Import\JobConfiguration\File\ConfigureMappingHandler;
 use Illuminate\Support\Collection;
 use League\Csv\Exception;
 use League\Csv\Reader;
+use Log;
 use Mockery;
 use Tests\TestCase;
 
@@ -45,13 +46,24 @@ use Tests\TestCase;
 class ConfigureMappingHandlerTest extends TestCase
 {
     /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+    /**
      * @covers \FireflyIII\Support\Import\JobConfiguration\File\ConfigureMappingHandler
      */
     public function testApplySpecifics(): void
     {
+        $importRepos        = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapG' . random_int(1, 1000);
+        $job->key           = 'mapG' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -84,6 +96,7 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testConfigureJob(): void
     {
+
         // create fake input for class method:
         $input          = [
             'mapping' => [
@@ -118,7 +131,7 @@ class ConfigureMappingHandlerTest extends TestCase
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapA' . random_int(1, 1000);
+        $job->key           = 'mapA' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -148,9 +161,11 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testDoColumnConfig(): void
     {
+        $importRepos        = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapE' . random_int(1, 1000);
+        $job->key           = 'mapE' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -211,10 +226,11 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testDoMapOfColumn(): void
     {
-
+        $importRepos        = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapC' . random_int(1, 1000);
+        $job->key           = 'mapC' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -241,9 +257,10 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testGetNextData(): void
     {
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapH' . random_int(1, 1000);
+        $job->key           = 'mapH' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -322,9 +339,11 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testGetPreProcessorName(): void
     {
+        $importRepos        = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapD' . random_int(1, 1000);
+        $job->key           = 'mapD' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -350,9 +369,10 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testGetReader(): void
     {
+
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapF' . random_int(1, 1000);
+        $job->key           = 'mapF' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -398,6 +418,8 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testGetValuesForMapping(): void
     {
+        $importRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         // create a reader to use in method.
         // 5 columns, of which #4 (index 3) is budget-id
         // 5 columns, of which #5 (index 4) is tags-space
@@ -439,7 +461,7 @@ class ConfigureMappingHandlerTest extends TestCase
 
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapB' . random_int(1, 1000);
+        $job->key           = 'mapB' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -465,10 +487,11 @@ class ConfigureMappingHandlerTest extends TestCase
      */
     public function testSanitizeColumnName(): void
     {
-
+        $importRepos        = $this->mock(ImportJobRepositoryInterface::class);
+        $importRepos->shouldReceive('setUser')->once();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'mapB' . random_int(1, 1000);
+        $job->key           = 'mapB' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';

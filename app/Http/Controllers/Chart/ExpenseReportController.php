@@ -18,20 +18,20 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+/** @noinspection MoreThanThreeArgumentsInspection */
 declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers\Chart;
 
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Models\Account;
-use FireflyIII\Models\AccountType;
-use FireflyIII\Models\Transaction;
-use FireflyIII\Models\TransactionType;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\AugumentData;
+use FireflyIII\Support\Http\Controllers\TransactionCalculation;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
 /**
@@ -41,13 +41,14 @@ use Illuminate\Support\Collection;
  */
 class ExpenseReportController extends Controller
 {
-    /** @var AccountRepositoryInterface */
+    use AugumentData, TransactionCalculation;
+    /** @var AccountRepositoryInterface The account repository */
     protected $accountRepository;
-    /** @var GeneratorInterface */
+    /** @var GeneratorInterface Chart generation methods. */
     protected $generator;
 
     /**
-     *
+     * ExpenseReportController constructor.
      */
     public function __construct()
     {
@@ -62,15 +63,24 @@ class ExpenseReportController extends Controller
         );
     }
 
+    /** @noinspection MoreThanThreeArgumentsInspection */
     /**
+     * Main chart that shows income and expense for a combination of expense/revenue accounts.
+     *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Collection $expense
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.NPathComplexity)
      */
-    public function mainChart(Collection $accounts, Collection $expense, Carbon $start, Carbon $end)
+    public function mainChart(Collection $accounts, Collection $expense, Carbon $start, Carbon $end): JsonResponse
     {
         $cache = new CacheProperties;
         $cache->addProperty('chart.expense.report.main');
@@ -95,6 +105,10 @@ class ExpenseReportController extends Controller
         }
 
         // prep chart data:
+        /**
+         * @var string     $name
+         * @var Collection $combi
+         */
         foreach ($combined as $name => $combi) {
             // first is always expense account:
             /** @var Account $exp */
@@ -136,8 +150,8 @@ class ExpenseReportController extends Controller
             $currentEnd = $currentEnd->$function();
 
             // get expenses grouped by opposing name:
-            $expenses = $this->groupByName($this->getExpenses($accounts, $all, $currentStart, $currentEnd));
-            $income   = $this->groupByName($this->getIncome($accounts, $all, $currentStart, $currentEnd));
+            $expenses = $this->groupByName($this->getExpensesForOpposing($accounts, $all, $currentStart, $currentEnd));
+            $income   = $this->groupByName($this->getIncomeForOpposing($accounts, $all, $currentStart, $currentEnd));
             $label    = $currentStart->formatLocalized($format);
 
             foreach ($combined as $name => $combi) {
@@ -163,6 +177,7 @@ class ExpenseReportController extends Controller
                 $chartData[$labelSumIn]['entries'][$label]  = $sumOfIncome[$exp->id];
                 $chartData[$labelSumOut]['entries'][$label] = $sumOfExpense[$exp->id];
             }
+            /** @var Carbon $currentStart */
             $currentStart = clone $currentEnd;
             $currentStart->addDay();
         }
@@ -180,82 +195,5 @@ class ExpenseReportController extends Controller
         $cache->store($data);
 
         return response()->json($data);
-    }
-
-    /**
-     * @param Collection $accounts
-     *
-     * @return array
-     */
-    protected function combineAccounts(Collection $accounts): array
-    {
-        $combined = [];
-        /** @var Account $expenseAccount */
-        foreach ($accounts as $expenseAccount) {
-            $collection = new Collection;
-            $collection->push($expenseAccount);
-
-            $revenue = $this->accountRepository->findByName($expenseAccount->name, [AccountType::REVENUE]);
-            if (null !== $revenue) {
-                $collection->push($revenue);
-            }
-            $combined[$expenseAccount->name] = $collection;
-        }
-
-        return $combined;
-    }
-
-    /**
-     * @param Collection $accounts
-     * @param Collection $opposing
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function getExpenses(Collection $accounts, Collection $opposing, Carbon $start, Carbon $end): Collection
-    {
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
-        $collector->setAccounts($accounts)->setRange($start, $end)->setTypes([TransactionType::WITHDRAWAL])->setOpposingAccounts($opposing);
-
-        return $collector->getJournals();
-    }
-
-    /**
-     * @param Collection $accounts
-     * @param Collection $opposing
-     * @param Carbon     $start
-     * @param Carbon     $end
-     *
-     * @return Collection
-     */
-    private function getIncome(Collection $accounts, Collection $opposing, Carbon $start, Carbon $end): Collection
-    {
-        /** @var JournalCollectorInterface $collector */
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
-        $collector->setAccounts($accounts)->setRange($start, $end)->setTypes([TransactionType::DEPOSIT])->setOpposingAccounts($opposing);
-
-        return $collector->getJournals();
-    }
-
-    /**
-     * @param Collection $set
-     *
-     * @return array
-     */
-    private function groupByName(Collection $set): array
-    {
-        // group by opposing account name.
-        $grouped = [];
-        /** @var Transaction $transaction */
-        foreach ($set as $transaction) {
-            $name           = $transaction->opposing_account_name;
-            $grouped[$name] = $grouped[$name] ?? '0';
-            $grouped[$name] = bcadd($transaction->transaction_amount, $grouped[$name]);
-        }
-
-        return $grouped;
     }
 }

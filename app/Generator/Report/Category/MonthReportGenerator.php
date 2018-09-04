@@ -18,6 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+/** @noinspection MultipleReturnStatementsInspection */
+/** @noinspection PhpUndefinedMethodInspection */
 declare(strict_types=1);
 
 namespace FireflyIII\Generator\Report\Category;
@@ -25,7 +27,7 @@ namespace FireflyIII\Generator\Report\Category;
 use Carbon\Carbon;
 use FireflyIII\Generator\Report\ReportGeneratorInterface;
 use FireflyIII\Generator\Report\Support;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\NegativeAmountFilter;
 use FireflyIII\Helpers\Filter\OpposingAccountFilter;
 use FireflyIII\Helpers\Filter\PositiveAmountFilter;
@@ -34,23 +36,25 @@ use FireflyIII\Models\Transaction;
 use FireflyIII\Models\TransactionType;
 use Illuminate\Support\Collection;
 use Log;
+use Throwable;
 
 /**
  * Class MonthReportGenerator.
+ * @codeCoverageIgnore
  */
 class MonthReportGenerator extends Support implements ReportGeneratorInterface
 {
-    /** @var Collection */
+    /** @var Collection The included accounts */
     private $accounts;
-    /** @var Collection */
+    /** @var Collection The included categories */
     private $categories;
-    /** @var Carbon */
+    /** @var Carbon The end date */
     private $end;
-    /** @var Collection */
+    /** @var Collection The expenses */
     private $expenses;
-    /** @var Collection */
+    /** @var Collection The income in the report. */
     private $income;
-    /** @var Carbon */
+    /** @var Carbon The start date. */
     private $start;
 
     /**
@@ -63,6 +67,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Generates the report.
+     *
      * @return string
      */
     public function generate(): string
@@ -80,27 +86,28 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
         $topIncome       = $this->getTopIncome();
 
         // render!
-        return view(
-            'reports.category.month',
-            compact(
-                'accountIds',
-                'categoryIds',
-                'topIncome',
-                'reportType',
-                'accountSummary',
-                'categorySummary',
-                'averageExpenses',
-                'averageIncome',
-                'topExpenses'
+        try {
+            return view(
+                'reports.category.month', compact(
+                                            'accountIds', 'categoryIds', 'topIncome', 'reportType', 'accountSummary', 'categorySummary', 'averageExpenses',
+                                            'averageIncome', 'topExpenses'
+                                        )
             )
-        )
-            ->with('start', $this->start)->with('end', $this->end)
-            ->with('categories', $this->categories)
-            ->with('accounts', $this->accounts)
-            ->render();
+                ->with('start', $this->start)->with('end', $this->end)
+                ->with('categories', $this->categories)
+                ->with('accounts', $this->accounts)
+                ->render();
+        } catch (Throwable $e) {
+            Log::error(sprintf('Cannot render reports.category.month: %s', $e->getMessage()));
+            $result = 'Could not render report view.';
+        }
+
+        return $result;
     }
 
     /**
+     * Set the involved accounts.
+     *
      * @param Collection $accounts
      *
      * @return ReportGeneratorInterface
@@ -113,6 +120,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Empty budget setter.
+     *
      * @param Collection $budgets
      *
      * @return ReportGeneratorInterface
@@ -123,6 +132,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Set the categories involved in this report.
+     *
      * @param Collection $categories
      *
      * @return ReportGeneratorInterface
@@ -135,6 +146,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Set the end date for this report.
+     *
      * @param Carbon $date
      *
      * @return ReportGeneratorInterface
@@ -147,6 +160,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Set the expenses involved in this report.
+     *
      * @param Collection $expense
      *
      * @return ReportGeneratorInterface
@@ -157,6 +172,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Set the start date for this report.
+     *
      * @param Carbon $date
      *
      * @return ReportGeneratorInterface
@@ -169,6 +186,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Unused tag setter.
+     *
      * @param Collection $tags
      *
      * @return ReportGeneratorInterface
@@ -179,6 +198,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
     }
 
     /**
+     * Get the expenses for this report.
+     *
      * @return Collection
      */
     protected function getExpenses(): Collection
@@ -189,8 +210,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
             return $this->expenses;
         }
 
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAccounts($this->accounts)->setRange($this->start, $this->end)
                   ->setTypes([TransactionType::WITHDRAWAL, TransactionType::TRANSFER])
                   ->setCategories($this->categories)->withOpposingAccount();
@@ -199,13 +220,15 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
         $collector->addFilter(OpposingAccountFilter::class);
         $collector->addFilter(PositiveAmountFilter::class);
 
-        $transactions   = $collector->getJournals();
+        $transactions   = $collector->getTransactions();
         $this->expenses = $transactions;
 
         return $transactions;
     }
 
     /**
+     * Get the income for this report.
+     *
      * @return Collection
      */
     protected function getIncome(): Collection
@@ -214,8 +237,8 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
             return $this->income;
         }
 
-        /** @var JournalCollectorInterface $collector */
-        $collector = app(JournalCollectorInterface::class);
+        /** @var TransactionCollectorInterface $collector */
+        $collector = app(TransactionCollectorInterface::class);
         $collector->setAccounts($this->accounts)->setRange($this->start, $this->end)
                   ->setTypes([TransactionType::DEPOSIT, TransactionType::TRANSFER])
                   ->setCategories($this->categories)->withOpposingAccount();
@@ -223,13 +246,15 @@ class MonthReportGenerator extends Support implements ReportGeneratorInterface
         $collector->addFilter(OpposingAccountFilter::class);
         $collector->addFilter(NegativeAmountFilter::class);
 
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
         $this->income = $transactions;
 
         return $transactions;
     }
 
     /**
+     * Summarize the category.
+     *
      * @param Collection $collection
      *
      * @return array

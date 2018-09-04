@@ -1,5 +1,4 @@
 <?php
-
 /**
  * CreateExport.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -20,6 +19,8 @@
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @noinspection MultipleReturnStatementsInspection */
+
 declare(strict_types=1);
 
 namespace FireflyIII\Console\Commands;
@@ -38,10 +39,13 @@ use Storage;
  * Class CreateExport.
  *
  * Generates export from the command line.
+ *
+ * @codeCoverageIgnore
  */
 class CreateExport extends Command
 {
     use VerifiesAccessToken;
+
     /**
      * The console command description.
      *
@@ -64,9 +68,11 @@ class CreateExport extends Command
     /**
      * Execute the console command.
      *
-     * @return mixed
+     * @return int
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function handle()
+    public function handle(): int
     {
         if (!$this->verifyAccessToken()) {
             $this->error('Invalid access token.');
@@ -86,6 +92,9 @@ class CreateExport extends Command
 
         // set user
         $user = $userRepository->findNull((int)$this->option('user'));
+        if (null === $user) {
+            return 1;
+        }
         $jobRepository->setUser($user);
         $journalRepository->setUser($user);
         $accountRepository->setUser($user);

@@ -50,9 +50,16 @@ interface RuleRepositoryInterface
     /**
      * @param int $ruleId
      *
-     * @return Rule
+     * @return Rule|null
      */
-    public function find(int $ruleId): Rule;
+    public function find(int $ruleId): ?Rule;
+
+    /**
+     * Get all the users rules.
+     *
+     * @return Collection
+     */
+    public function getAll(): Collection;
 
     /**
      * @return RuleGroup

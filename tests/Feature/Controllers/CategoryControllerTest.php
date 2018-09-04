@@ -23,18 +23,15 @@ declare(strict_types=1);
 namespace Tests\Feature\Controllers;
 
 use Carbon\Carbon;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
-use FireflyIII\Helpers\Filter\InternalTransferFilter;
 use FireflyIII\Models\Category;
-use FireflyIII\Models\Transaction;
 use FireflyIII\Models\TransactionJournal;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Repositories\Category\CategoryRepositoryInterface;
 use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
-use Illuminate\Pagination\LengthAwarePaginator;
+use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Support\Collection;
 use Log;
-use Navigation;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -49,22 +46,26 @@ class CategoryControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::create
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      */
     public function testCreate(): void
     {
+        Log::debug('TestCreate()');
         // mock stuff
         $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
         $accountRepos  = $this->mock(AccountRepositoryInterface::class);
         $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('categories.create'));
@@ -74,15 +75,19 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::delete
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      */
     public function testDelete(): void
     {
+        Log::debug('Test Delete()');
         // mock stuff
         $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
         $accountRepos  = $this->mock(AccountRepositoryInterface::class);
         $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('categories.delete', [1]));
@@ -92,16 +97,18 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::destroy
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      */
     public function testDestroy(): void
     {
+        Log::debug('Test destroy()');
         // mock stuff
         $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
         $accountRepos  = $this->mock(AccountRepositoryInterface::class);
         $journalRepos  = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
 
+        $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
         $categoryRepos->shouldReceive('destroy')->andReturn(true);
 
         $this->session(['categories.delete.uri' => 'http://localhost']);
@@ -112,15 +119,19 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::edit
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      */
     public function testEdit(): void
     {
+        Log::debug('Test edit()');
         // mock stuff
         $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
         $accountRepos  = $this->mock(AccountRepositoryInterface::class);
         $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('categories.edit', [1]));
@@ -130,19 +141,22 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::index
-     * @covers \FireflyIII\Http\Controllers\CategoryController::__construct
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      */
     public function testIndex(): void
     {
+        Log::debug('Test index()');
         // mock stuff
         $category      = factory(Category::class)->make();
         $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
         $accountRepos  = $this->mock(AccountRepositoryInterface::class);
         $journalRepos  = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
         $categoryRepos->shouldReceive('getCategories')->andReturn(new Collection([$category]))->once();
         $categoryRepos->shouldReceive('lastUseDate')->andReturn(new Carbon)->once();
+        $userRepos->shouldReceive('hasRole')->withArgs([Mockery::any(), 'owner'])->atLeast()->once()->andReturn(true);
 
         $this->be($this->user());
         $response = $this->get(route('categories.index'));
@@ -152,308 +166,17 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::noCategory
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getNoCategoryPeriodOverview
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testNoCategory(string $range): void
-    {
-        // mock stuff
-        $collector     = $this->mock(JournalCollectorInterface::class);
-        $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
-        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
-        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn(TransactionJournal::first());
-
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf();
-        $collector->shouldReceive('setTypes')->andReturnSelf();
-        $collector->shouldReceive('setRange')->andReturnSelf();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('withoutCategory')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection);
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([], 0, 10));
-
-        $collector->shouldReceive('setPage')->andReturnSelf();
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf();
-        $collector->shouldReceive('setLimit')->andReturnSelf();
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.no-category'));
-        $response->assertStatus(200);
-        // has bread crumb
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::noCategory
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getNoCategoryPeriodOverview
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     *
-     */
-    public function testNoCategoryAll(string $range): void
-    {
-        // mock stuff
-        $collector     = $this->mock(JournalCollectorInterface::class);
-        $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
-        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
-        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn(TransactionJournal::first());
-
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf();
-        $collector->shouldReceive('setTypes')->andReturnSelf();
-        $collector->shouldReceive('setRange')->andReturnSelf();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('withoutCategory')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection);
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([], 0, 10));
-
-        $collector->shouldReceive('setPage')->andReturnSelf();
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf();
-        $collector->shouldReceive('setLimit')->andReturnSelf();
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.no-category', ['all']));
-        $response->assertStatus(200);
-        // has bread crumb
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::noCategory
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getNoCategoryPeriodOverview
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testNoCategoryDate(string $range): void
-    {
-        // mock stuff
-        $collector     = $this->mock(JournalCollectorInterface::class);
-        $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
-        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
-        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn(TransactionJournal::first());
-
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf();
-        $collector->shouldReceive('setTypes')->andReturnSelf();
-        $collector->shouldReceive('setRange')->andReturnSelf();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('withoutCategory')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection);
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([], 0, 10));
-
-        $collector->shouldReceive('setPage')->andReturnSelf();
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf();
-        $collector->shouldReceive('setLimit')->andReturnSelf();
-
-        Navigation::shouldReceive('updateStartDate')->andReturn(new Carbon);
-        Navigation::shouldReceive('updateEndDate')->andReturn(new Carbon);
-        Navigation::shouldReceive('startOfPeriod')->andReturn(new Carbon);
-        Navigation::shouldReceive('endOfPeriod')->andReturn(new Carbon);
-        Navigation::shouldReceive('periodShow')->andReturn('Some date');
-        Navigation::shouldReceive('blockPeriods')->andReturn([['period' => '1M', 'start' => new Carbon, 'end' => new Carbon]])->once();
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.no-category', ['2016-01-01']));
-        $response->assertStatus(200);
-        // has bread crumb
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::show
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getPeriodOverview
-     *
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testShow(string $range): void
-    {
-        $transaction   = factory(Transaction::class)->make();
-        $categoryRepos = $this->mock(CategoryRepositoryInterface::class);
-        $accountRepos  = $this->mock(AccountRepositoryInterface::class);
-        $journalRepos  = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn(TransactionJournal::first());
-
-        // mock stuff
-        $categoryRepos->shouldReceive('spentInPeriod')->andReturn('0');
-        $categoryRepos->shouldReceive('earnedInPeriod')->andReturn('0');
-
-        $accountRepos->shouldReceive('getAccountsByType')->once()->andReturn(new Collection);
-
-        $collector = $this->mock(JournalCollectorInterface::class);
-        $collector->shouldReceive('setPage')->andReturnSelf()->once();
-        $collector->shouldReceive('setLimit')->andReturnSelf()->once();
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf()->atLeast(2);
-        $collector->shouldReceive('setRange')->andReturnSelf()->atLeast(2);
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf()->atLeast(2);
-        $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withCategoryInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf()->atLeast(2);
-        $collector->shouldReceive('setCategory')->andReturnSelf()->atLeast(2);
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([$transaction], 0, 10))->once();
-
-        $collector->shouldReceive('setTypes')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('getJournals')->andReturn(new Collection)->atLeast(1);
-
-        Navigation::shouldReceive('updateStartDate')->andReturn(new Carbon);
-        Navigation::shouldReceive('updateEndDate')->andReturn(new Carbon);
-        Navigation::shouldReceive('startOfPeriod')->andReturn(new Carbon);
-        Navigation::shouldReceive('endOfPeriod')->andReturn(new Carbon);
-        Navigation::shouldReceive('periodShow')->andReturn('Some date');
-        Navigation::shouldReceive('blockPeriods')->andReturn([['period' => '1M', 'start' => new Carbon, 'end' => new Carbon]])->once();
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.show', [1]));
-        $response->assertStatus(200);
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::show
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testShowAll(string $range): void
-    {
-        // mock stuff
-        $transaction  = factory(Transaction::class)->make();
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
-        $repository   = $this->mock(CategoryRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
-        $accountRepos = $this->mock(AccountRepositoryInterface::class);
-
-        $collector->shouldReceive('setPage')->andReturnSelf()->once();
-        $collector->shouldReceive('setLimit')->andReturnSelf()->once();
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf()->once();
-        $collector->shouldReceive('setRange')->andReturnSelf()->once();
-        $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withCategoryInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf()->once();
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf()->once();
-
-        $collector->shouldReceive('setCategory')->andReturnSelf()->once();
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([$transaction], 0, 10))->once();
-
-        $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
-        $repository->shouldReceive('firstUseDate')->andReturn(new Carbon);
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.show', [1, 'all']));
-        $response->assertStatus(200);
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::show
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getPeriodOverview
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testShowByDate(string $range): void
-    {
-        // mock stuff
-        $transaction  = factory(Transaction::class)->make();
-        $repository   = $this->mock(CategoryRepositoryInterface::class);
-        $accountRepos = $this->mock(AccountRepositoryInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
-        $month        = new Carbon();
-        $month->startOfMonth();
-        $journal = TransactionJournal::where('date', '>=', $month->format('Y-m-d') . ' 00:00:00')->first();
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn($journal);
-
-        $accountRepos->shouldReceive('getAccountsByType')->andReturn(new Collection);
-
-        $collector->shouldReceive('setPage')->andReturnSelf()->once();
-        $collector->shouldReceive('setLimit')->andReturnSelf()->once();
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setRange')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setTypes')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withCategoryInformation')->andReturnSelf()->once();
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setCategory')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('getJournals')->andReturn(new Collection)->atLeast(1);
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([$transaction], 0, 10))->once();
-
-        $repository->shouldReceive('spentInPeriod')->andReturn('-1');
-        $repository->shouldReceive('earnedInPeriod')->andReturn('1');
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $today = new Carbon();
-        $today->subDay();
-        $response = $this->get(route('categories.show', [1, $today->format('Y-m-d')]));
-        $response->assertStatus(200);
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::show
-     * @covers       \FireflyIII\Http\Controllers\CategoryController::getPeriodOverview
-     *
-     * @dataProvider dateRangeProvider
-     *
-     * @param string $range
-     */
-    public function testShowEmpty(string $range): void
-    {
-        $journalRepos = $this->mock(JournalRepositoryInterface::class);
-        $journalRepos->shouldReceive('firstNull')->twice()->andReturn(TransactionJournal::first());
-
-        // mock stuff
-        $repository = $this->mock(CategoryRepositoryInterface::class);
-        $repository->shouldReceive('spentInPeriod')->andReturn('0');
-        $repository->shouldReceive('earnedInPeriod')->andReturn('0');
-
-        $accountRepos = $this->mock(AccountRepositoryInterface::class);
-        $accountRepos->shouldReceive('getAccountsByType')->once()->andReturn(new Collection);
-
-        $collector = $this->mock(JournalCollectorInterface::class);
-        $collector->shouldReceive('setPage')->andReturnSelf()->once();
-        $collector->shouldReceive('setLimit')->andReturnSelf()->once();
-        $collector->shouldReceive('setAllAssetAccounts')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setRange')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('removeFilter')->withArgs([InternalTransferFilter::class])->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('withCategoryInformation')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('withOpposingAccount')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setCategory')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('setTypes')->andReturnSelf()->atLeast(1);
-        $collector->shouldReceive('getJournals')->andReturn(new Collection)->atLeast(1);
-
-        $collector->shouldReceive('getPaginatedJournals')->andReturn(new LengthAwarePaginator([], 0, 10))->atLeast(1);
-
-        $this->be($this->user());
-        $this->changeDateRange($this->user(), $range);
-        $response = $this->get(route('categories.show', [1]));
-        $response->assertStatus(200);
-        $response->assertSee('<ol class="breadcrumb">');
-    }
-
-    /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::store
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      * @covers \FireflyIII\Http\Requests\CategoryFormRequest
      */
     public function testStore(): void
     {
+        Log::debug('Test store()');
         $accountRepos = $this->mock(AccountRepositoryInterface::class);
         $repository   = $this->mock(CategoryRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
         $repository->shouldReceive('findNull')->andReturn(new Category);
         $repository->shouldReceive('store')->andReturn(new Category);
@@ -470,15 +193,18 @@ class CategoryControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\CategoryController::update
+     * @covers \FireflyIII\Http\Controllers\CategoryController
      * @covers \FireflyIII\Http\Requests\CategoryFormRequest
      */
     public function testUpdate(): void
     {
+        Log::debug('Test update()');
         $category     = Category::first();
         $repository   = $this->mock(CategoryRepositoryInterface::class);
         $journalRepos = $this->mock(JournalRepositoryInterface::class);
         $accountRepos = $this->mock(AccountRepositoryInterface::class);
+        $userRepos     = $this->mock(UserRepositoryInterface::class);
+
         $journalRepos->shouldReceive('firstNull')->once()->andReturn(TransactionJournal::first());
         $repository->shouldReceive('update');
         $repository->shouldReceive('findNull')->andReturn($category);

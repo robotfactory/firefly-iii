@@ -26,9 +26,9 @@ use Exception;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Http\Controllers\Controller;
 use FireflyIII\Import\Routine\RoutineInterface;
-use FireflyIII\Import\Storage\ImportArrayStorage;
 use FireflyIII\Models\ImportJob;
 use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
+use FireflyIII\Support\Http\Controllers\CreateStuff;
 use Illuminate\Http\JsonResponse;
 use Log;
 
@@ -37,11 +37,12 @@ use Log;
  */
 class JobStatusController extends Controller
 {
-    /** @var ImportJobRepositoryInterface */
+    use CreateStuff;
+    /** @var ImportJobRepositoryInterface The import job repository */
     private $repository;
 
     /**
-     *
+     * JobStatusController constructor.
      */
     public function __construct()
     {
@@ -50,7 +51,7 @@ class JobStatusController extends Controller
         $this->middleware(
             function ($request, $next) {
                 app('view')->share('mainTitleIcon', 'fa-archive');
-                app('view')->share('title', trans('firefly.import_index_title'));
+                app('view')->share('title', (string)trans('firefly.import_index_title'));
                 $this->repository = app(ImportJobRepositoryInterface::class);
 
                 return $next($request);
@@ -59,6 +60,8 @@ class JobStatusController extends Controller
     }
 
     /**
+     * Index for job status.
+     *
      * @param ImportJob $importJob
      *
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
@@ -66,12 +69,14 @@ class JobStatusController extends Controller
     public function index(ImportJob $importJob)
     {
         $subTitleIcon = 'fa-gear';
-        $subTitle     = trans('import.job_status_breadcrumb', ['key' => $importJob->key]);
+        $subTitle     = (string)trans('import.job_status_breadcrumb', ['key' => $importJob->key]);
 
         return view('import.status', compact('importJob', 'subTitle', 'subTitleIcon'));
     }
 
     /**
+     * JSON overview of job status.
+     *
      * @param ImportJob $importJob
      *
      * @return JsonResponse
@@ -85,12 +90,12 @@ class JobStatusController extends Controller
             'count'                => $count,
             'tag_id'               => $importJob->tag_id,
             'tag_name'             => null === $importJob->tag_id ? null : $importJob->tag->tag,
-            'report_txt'           => trans('import.unknown_import_result'),
+            'report_txt'           => (string)trans('import.unknown_import_result'),
             'download_config'      => false,
             'download_config_text' => '',
         ];
 
-        if ($importJob->provider === 'file') {
+        if ('file' === $importJob->provider) {
             $json['download_config'] = true;
             $json['download_config_text']
                                      = trans('import.should_download_config', ['route' => route('import.job.download', [$importJob->key])]) . ' '
@@ -101,10 +106,10 @@ class JobStatusController extends Controller
         if (null !== $importJob->tag_id) {
             $count = $importJob->tag->transactionJournals->count();
         }
-        if ($count === 0) {
-            $json['report_txt'] = trans('import.result_no_transactions');
+        if (0 === $count) {
+            $json['report_txt'] = (string)trans('import.result_no_transactions');
         }
-        if ($count === 1 && null !== $importJob->tag_id) {
+        if (1 === $count && null !== $importJob->tag_id) {
             $json['report_txt'] = trans(
                 'import.result_one_transaction', ['route' => route('tags.show', [$importJob->tag_id, 'all']), 'tag' => $importJob->tag->tag]
             );
@@ -120,17 +125,20 @@ class JobStatusController extends Controller
     }
 
     /**
+     * Calls to start the job.
+     *
      * @param ImportJob $importJob
      *
      * @return JsonResponse
      */
     public function start(ImportJob $importJob): JsonResponse
     {
+        Log::debug('Now in JobStatusController::start');
         // catch impossible status:
-        $allowed = ['ready_to_run', 'need_job_config', 'error']; // todo remove error
+        $allowed = ['ready_to_run', 'need_job_config'];
 
         if (null !== $importJob && !\in_array($importJob->status, $allowed, true)) {
-            Log::error('Job is not ready.');
+            Log::error(sprintf('Job is not ready. Status should be in array, but is %s', $importJob->status), $allowed);
             $this->repository->setStatus($importJob, 'error');
 
             return response()->json(
@@ -151,7 +159,11 @@ class JobStatusController extends Controller
         /** @var RoutineInterface $routine */
         $routine = app($className);
         $routine->setImportJob($importJob);
+
+        Log::debug(sprintf('Created class of type %s', $className));
+
         try {
+            Log::debug(sprintf('Try to call %s:run()', $className));
             $routine->run();
         } catch (FireflyException|Exception $e) {
             $message = 'The import routine crashed: ' . $e->getMessage();
@@ -183,7 +195,7 @@ class JobStatusController extends Controller
         // catch impossible status:
         $allowed = ['provider_finished', 'storing_data'];
         if (null !== $importJob && !\in_array($importJob->status, $allowed, true)) {
-            Log::error('Job is not ready.');
+            Log::error(sprintf('Job is not ready. Status should be in array, but is %s', $importJob->status), $allowed);
 
             return response()->json(
                 ['status' => 'NOK', 'message' => sprintf('JobStatusController::start expects status "provider_finished" instead of "%s".', $importJob->status)]
@@ -213,20 +225,5 @@ class JobStatusController extends Controller
         return response()->json(['status' => 'OK', 'message' => 'storage_finished']);
     }
 
-    /**
-     * @param ImportJob $importJob
-     *
-     * @throws FireflyException
-     */
-    private function storeTransactions(ImportJob $importJob): void
-    {
-        /** @var ImportArrayStorage $storage */
-        $storage = app(ImportArrayStorage::class);
-        $storage->setImportJob($importJob);
-        try {
-            $storage->store();
-        } catch (FireflyException|Exception $e) {
-            throw new FireflyException($e->getMessage());
-        }
-    }
+
 }

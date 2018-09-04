@@ -23,58 +23,86 @@ declare(strict_types=1);
 namespace FireflyIII\Models;
 
 use Carbon\Carbon;
+use FireflyIII\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class Transaction.
  *
- * @property int    $journal_id
- * @property Carbon $date
- * @property string $transaction_description
- * @property string $transaction_amount
- * @property string $transaction_foreign_amount
- * @property string $transaction_type_type
- * @property string $foreign_currency_symbol
- * @property int    $foreign_currency_dp
- * @property int    $account_id
- * @property string $account_name
- * @property string $account_iban
- * @property string $account_number
- * @property string $account_bic
- * @property string $account_type
- * @property string $account_currency_code
- * @property int    $opposing_account_id
- * @property string $opposing_account_name
- * @property string $opposing_account_iban
- * @property string $opposing_account_number
- * @property string $opposing_account_bic
- * @property string $opposing_account_type
- * @property string $opposing_currency_code
- * @property int    $transaction_budget_id
- * @property string $transaction_budget_name
- * @property int    $transaction_journal_budget_id
- * @property string $transaction_journal_budget_name
- * @property int    $transaction_category_id
- * @property string $transaction_category_name
- * @property int    $transaction_journal_category_id
- * @property string $transaction_journal_category_name
- * @property int    $bill_id
- * @property string $bill_name
- * @property string $notes
- * @property string $tags
- * @property string $transaction_currency_symbol
- * @property int    $transaction_currency_dp
- * @property string $transaction_currency_code
- * @property string $description
- * @property bool   $is_split
- * @property int    $attachmentCount
- * @property int $transaction_currency_id
+ * @property int                 $journal_id
+ * @property Carbon              $date
+ * @property string              $transaction_description
+ * @property string              $transaction_amount
+ * @property string              $transaction_foreign_amount
+ * @property string              $transaction_type_type
+ * @property string              $foreign_currency_symbol
+ * @property int                 $foreign_currency_dp
+ * @property int                 $account_id
+ * @property string              $account_name
+ * @property string              $account_iban
+ * @property string              $account_number
+ * @property string              $account_bic
+ * @property string              $account_type
+ * @property string              $account_currency_code
+ * @property int                 $opposing_account_id
+ * @property string              $opposing_account_name
+ * @property string              $opposing_account_iban
+ * @property string              $opposing_account_number
+ * @property string              $opposing_account_bic
+ * @property string              $opposing_account_type
+ * @property string              $opposing_currency_code
+ * @property int                 $transaction_budget_id
+ * @property string              $transaction_budget_name
+ * @property int                 $transaction_journal_budget_id
+ * @property string              $transaction_journal_budget_name
+ * @property int                 $transaction_category_id
+ * @property string              $transaction_category_name
+ * @property int                 $transaction_journal_category_id
+ * @property string              $transaction_journal_category_name
+ * @property int                 $bill_id
+ * @property string              $bill_name
+ * @property string              $bill_name_encrypted
+ * @property string              $notes
+ * @property string              $tags
+ * @property string              $transaction_currency_name
+ * @property string              $transaction_currency_symbol
+ * @property int                 $transaction_currency_dp
+ * @property string              $transaction_currency_code
+ * @property string              $description
+ * @property bool                $is_split
+ * @property int                 $attachmentCount
+ * @property int                 $transaction_currency_id
+ * @property int                 $foreign_currency_id
+ * @property string              $amount
+ * @property string              $foreign_amount
+ * @property TransactionJournal  $transactionJournal
+ * @property Account             $account
+ * @property int                 $identifier
+ * @property int                 $id
+ * @property TransactionCurrency $transactionCurrency
+ * @property int                 $transaction_journal_id
+ * @property TransactionCurrency $foreignCurrency
+ * @property string              $before      // used in audit reports.
+ * @property string              $after       // used in audit reports.
+ * @property int                 $opposing_id // ID of the opposing transaction, used in collector
+ * @property bool                $encrypted   // is the journal encrypted
+ * @property bool                reconciled
+ * @property string              transaction_category_encrypted
+ * @property string              transaction_journal_category_encrypted
+ * @property string              transaction_budget_encrypted
+ * @property string              transaction_journal_budget_encrypted
+ * @property string              type
+ * @property string              name
+ * @SuppressWarnings(PHPMD.TooManyPublicMethods)
  */
 class Transaction extends Model
 {
+    use SoftDeletes;
     /**
      * The attributes that should be casted to native types.
      *
@@ -90,24 +118,23 @@ class Transaction extends Model
             'bill_name_encrypted' => 'boolean',
             'reconciled'          => 'boolean',
         ];
-    /**
-     * @var array
-     */
+    /** @var array Fields that can be filled */
     protected $fillable
         = ['account_id', 'transaction_journal_id', 'description', 'amount', 'identifier', 'transaction_currency_id', 'foreign_currency_id',
            'foreign_amount', 'reconciled'];
-    /**
-     * @var array
-     */
+    /** @var array Hidden from view */
     protected $hidden = ['encrypted'];
 
     /**
-     * @codeCoverageIgnore
+     * Check if a table is joined.
+     *
+     *
      *
      * @param Builder $query
      * @param string  $table
      *
      * @return bool
+     * @codeCoverageIgnore
      */
     public static function isJoined(Builder $query, string $table): bool
     {
@@ -125,17 +152,21 @@ class Transaction extends Model
     }
 
     /**
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
+     *
      * @param string $value
      *
      * @return Transaction
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): Transaction
     {
         if (auth()->check()) {
             $transactionId = (int)$value;
-            $transaction   = auth()->user()->transactions()->where('transactions.id', $transactionId)
-                                   ->first(['transactions.*']);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var Transaction $transaction */
+            $transaction = $user->transactions()->where('transactions.id', $transactionId)->first(['transactions.*']);
             if (null !== $transaction) {
                 return $transaction;
             }
@@ -144,63 +175,60 @@ class Transaction extends Model
         throw new NotFoundHttpException;
     }
 
-    use SoftDeletes;
 
     /**
+     * Get the account this object belongs to.
+     *
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function account()
+    public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
 
     /**
+     * Get the budget(s) this object belongs to.
+     *
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function budgets()
+    public function budgets(): BelongsToMany
     {
         return $this->belongsToMany(Budget::class);
     }
 
     /**
+     * Get the category(ies) this object belongs to.
+     *
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function categories()
+    public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class);
     }
 
     /**
+     * Get the currency this object belongs to.
+     *
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function foreignCurrency()
+    public function foreignCurrency(): BelongsTo
     {
         return $this->belongsTo(TransactionCurrency::class, 'foreign_currency_id');
     }
 
     /**
-     * @codeCoverageIgnore
+     * Check for transactions AFTER a specified date.
      *
-     * @param $value
-     *
-     * @return float|int
-     */
-    public function getAmountAttribute($value)
-    {
-        return $value;
-    }
-
-    /**
      * @codeCoverageIgnore
      *
      * @param Builder $query
      * @param Carbon  $date
      */
-    public function scopeAfter(Builder $query, Carbon $date)
+    public function scopeAfter(Builder $query, Carbon $date): void
     {
         if (!self::isJoined($query, 'transaction_journals')) {
             $query->leftJoin('transaction_journals', 'transaction_journals.id', '=', 'transactions.transaction_journal_id');
@@ -209,12 +237,14 @@ class Transaction extends Model
     }
 
     /**
+     * Check for transactions BEFORE the specified date.
+     *
      * @codeCoverageIgnore
      *
      * @param Builder $query
      * @param Carbon  $date
      */
-    public function scopeBefore(Builder $query, Carbon $date)
+    public function scopeBefore(Builder $query, Carbon $date): void
     {
         if (!self::isJoined($query, 'transaction_journals')) {
             $query->leftJoin('transaction_journals', 'transaction_journals.id', '=', 'transactions.transaction_journal_id');
@@ -228,7 +258,7 @@ class Transaction extends Model
      * @param Builder $query
      * @param array   $types
      */
-    public function scopeTransactionTypes(Builder $query, array $types)
+    public function scopeTransactionTypes(Builder $query, array $types): void
     {
         if (!self::isJoined($query, 'transaction_journals')) {
             $query->leftJoin('transaction_journals', 'transaction_journals.id', '=', 'transactions.transaction_journal_id');
@@ -245,25 +275,25 @@ class Transaction extends Model
      *
      * @param $value
      */
-    public function setAmountAttribute($value)
+    public function setAmountAttribute($value): void
     {
         $this->attributes['amount'] = (string)$value;
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function transactionCurrency()
+    public function transactionCurrency(): BelongsTo
     {
         return $this->belongsTo(TransactionCurrency::class);
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function transactionJournal()
+    public function transactionJournal(): BelongsTo
     {
         return $this->belongsTo(TransactionJournal::class);
     }

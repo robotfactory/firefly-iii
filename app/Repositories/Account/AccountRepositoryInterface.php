@@ -25,16 +25,17 @@ namespace FireflyIII\Repositories\Account;
 use Carbon\Carbon;
 use FireflyIII\Models\Account;
 use FireflyIII\Models\AccountType;
-use FireflyIII\Models\Note;
 use FireflyIII\Models\TransactionJournal;
 use FireflyIII\User;
 use Illuminate\Support\Collection;
+
 
 /**
  * Interface AccountRepositoryInterface.
  */
 interface AccountRepositoryInterface
 {
+
     /**
      * Moved here from account CRUD.
      *
@@ -55,29 +56,14 @@ interface AccountRepositoryInterface
     public function destroy(Account $account, ?Account $moveTo): bool;
 
     /**
-     * @param int $accountId
+     * Find by account number. Is used.
      *
-     * @deprecated
-     * @return Account
-     */
-    public function find(int $accountId): Account;
-
-    /**
      * @param string $number
      * @param array  $types
      *
      * @return Account|null
      */
     public function findByAccountNumber(string $number, array $types): ?Account;
-
-    /**
-     * @param string $iban
-     * @param array  $types
-     *
-     * @deprecated
-     * @return Account
-     */
-    public function findByIban(string $iban, array $types): Account;
 
     /**
      * @param string $iban
@@ -103,13 +89,13 @@ interface AccountRepositoryInterface
     public function findNull(int $accountId): ?Account;
 
     /**
-     * Return account type by string.
+     * Return account type or null if not found.
      *
      * @param string $type
      *
      * @return AccountType|null
      */
-    public function getAccountType(string $type): ?AccountType;
+    public function getAccountTypeByType(string $type): ?AccountType;
 
     /**
      * @param array $accountIds
@@ -138,6 +124,13 @@ interface AccountRepositoryInterface
     public function getCashAccount(): Account;
 
     /**
+     * @param $account
+     *
+     * @return string
+     */
+    public function getInterestPerDay(Account $account): string;
+
+    /**
      * Return meta value for account. Null if not found.
      *
      * @param Account $account
@@ -146,13 +139,6 @@ interface AccountRepositoryInterface
      * @return null|string
      */
     public function getMetaValue(Account $account, string $field): ?string;
-
-    /**
-     * @param Account $account
-     *
-     * @return Note|null
-     */
-    public function getNote(Account $account): ?Note;
 
     /**
      * Get note text or null.
@@ -171,7 +157,6 @@ interface AccountRepositoryInterface
      * @return string
      */
     public function getOpeningBalanceAmount(Account $account): ?string;
-
 
     /**
      * Return date of opening balance as string or null.
@@ -192,31 +177,47 @@ interface AccountRepositoryInterface
     public function getReconciliation(Account $account): ?Account;
 
     /**
+     * @param Account $account
+     *
+     * @return bool
+     */
+    public function isLiability(Account $account): bool;
+
+    /**
+     * Returns the date of the very first transaction in this account.
+     *
+     * @param Account $account
+     *
+     * @return TransactionJournal|null
+     */
+    public function latestJournal(Account $account): ?TransactionJournal;
+
+    /**
      * Returns the date of the very last transaction in this account.
      *
      * @param Account $account
      *
-     * @return Carbon
+     * @return Carbon|null
      */
-    public function newestJournalDate(Account $account): Carbon;
+    public function latestJournalDate(Account $account): ?Carbon;
 
     /**
      * Returns the date of the very first transaction in this account.
      *
      * @param Account $account
      *
-     * @return TransactionJournal
+     * @return TransactionJournal|null
      */
-    public function oldestJournal(Account $account): TransactionJournal;
+    public function oldestJournal(Account $account): ?TransactionJournal;
 
     /**
      * Returns the date of the very first transaction in this account.
      *
      * @param Account $account
      *
-     * @return Carbon
+     * @return Carbon|null
      */
-    public function oldestJournalDate(Account $account): Carbon;
+    public function oldestJournalDate(Account $account): ?Carbon;
 
     /**
      * @param User $user
@@ -237,12 +238,4 @@ interface AccountRepositoryInterface
      * @return Account
      */
     public function update(Account $account, array $data): Account;
-
-    /**
-     * @param TransactionJournal $journal
-     * @param array              $data
-     *
-     * @return TransactionJournal
-     */
-    public function updateReconciliation(TransactionJournal $journal, array $data): TransactionJournal;
 }

@@ -25,7 +25,6 @@ namespace Tests\Unit\Transformers;
 
 use Carbon\Carbon;
 use FireflyIII\Models\Bill;
-use FireflyIII\Models\Note;
 use FireflyIII\Repositories\Bill\BillRepositoryInterface;
 use FireflyIII\Transformers\BillTransformer;
 use Illuminate\Support\Collection;
@@ -40,9 +39,7 @@ class BillTransformerTest extends TestCase
     /**
      * Basic coverage
      *
-     * @covers \FireflyIII\Transformers\BillTransformer::transform
-     * @covers \FireflyIII\Transformers\BillTransformer::paidData
-     * @covers \FireflyIII\Transformers\BillTransformer::payDates
+     * @covers \FireflyIII\Transformers\BillTransformer
      */
     public function testBasic(): void
     {
@@ -69,51 +66,9 @@ class BillTransformerTest extends TestCase
     }
 
     /**
-     * Basic coverage with a note.
-     *
-     * @covers \FireflyIII\Transformers\BillTransformer::transform
-     */
-    public function testNote(): void
-    {
-
-        $bill     = Bill::create(
-            [
-                'user_id'                 => $this->user()->id,
-                'name'                    => 'Some bill ' . random_int(1, 10000),
-                'match'                   => 'word,' . random_int(1, 10000),
-                'amount_min'              => 12.34,
-                'amount_max'              => 45.67,
-                'date'                    => '2018-01-02',
-                'transaction_currency_id' => 1,
-                'repeat_freq'             => 'weekly',
-                'skip'                    => 0,
-                'active'                  => 1,
-            ]
-        );
-        $noteText = 'I are a note ' . random_int(1, 10000);
-        Note::create(
-            [
-                'noteable_id'   => $bill->id,
-                'noteable_type' => Bill::class,
-                'text'          => $noteText,
-            ]
-        );
-        $transformer = new BillTransformer(new ParameterBag);
-        $result      = $transformer->transform($bill);
-
-        $this->assertEquals($bill->name, $result['name']);
-        $this->assertEquals($noteText, $result['notes']);
-        $this->assertTrue($result['active']);
-    }
-
-    /**
      * Coverage for dates.
      *
-     * @covers \FireflyIII\Transformers\BillTransformer::transform
-     * @covers \FireflyIII\Transformers\BillTransformer::paidData
-     * @covers \FireflyIII\Transformers\BillTransformer::payDates
-     * @covers \FireflyIII\Transformers\BillTransformer::lastPaidDate
-     * @covers \FireflyIII\Transformers\BillTransformer::nextDateMatch
+     * @covers \FireflyIII\Transformers\BillTransformer
      */
     public function testWithDates(): void
     {

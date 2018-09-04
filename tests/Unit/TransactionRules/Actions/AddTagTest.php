@@ -22,11 +22,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\TransactionRules\Actions;
 
+use FireflyIII\Factory\TagFactory;
 use FireflyIII\Models\RuleAction;
 use FireflyIII\Models\Tag;
 use FireflyIII\Models\TransactionJournal;
 use FireflyIII\TransactionRules\Actions\AddTag;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class AddTagTest
@@ -34,13 +36,29 @@ use Tests\TestCase;
 class AddTagTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\TransactionRules\Actions\AddTag::__construct
-     * @covers \FireflyIII\TransactionRules\Actions\AddTag::act()
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+    /**
+     * @covers \FireflyIII\TransactionRules\Actions\AddTag
      */
     public function testActExistingTag(): void
     {
-        $tag     = Tag::inRandomOrder()->whereNull('deleted_at')->first();
-        $journal = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
+        $tag = $this->user()->tags()->inRandomOrder()->whereNull('deleted_at')->first();
+
+        $tagFactory = $this->mock(TagFactory::class);
+        $tagFactory->shouldReceive('setUser')->once();
+        $tagFactory->shouldReceive('findOrCreate')->once()->withArgs([$tag->tag])->andReturn($tag);
+
+
+        /** @var TransactionJournal $journal */
+        $journal = $this->user()->transactionJournals()->inRandomOrder()->whereNull('deleted_at')->first();
+        $journal->tags()->sync([]);
         $journal->tags()->sync([$tag->id]);
         $this->assertDatabaseHas('tag_transaction_journal', ['tag_id' => $tag->id, 'transaction_journal_id' => $journal->id]);
         $ruleAction               = new RuleAction;
@@ -53,13 +71,14 @@ class AddTagTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\TransactionRules\Actions\AddTag::act()
+     * @covers \FireflyIII\TransactionRules\Actions\AddTag
      */
     public function testActNoTag(): void
     {
+        $newTagName               = 'TestTag-' . random_int(1, 10000);
         $journal                  = TransactionJournal::inRandomOrder()->whereNull('deleted_at')->first();
         $ruleAction               = new RuleAction;
-        $ruleAction->action_value = 'TestTag-' . random_int(1, 1000);
+        $ruleAction->action_value = $newTagName;
         $action                   = new AddTag($ruleAction);
         $result                   = $action->act($journal);
         $this->assertTrue($result);

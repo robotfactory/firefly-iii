@@ -30,10 +30,12 @@ use Illuminate\Support\Collection;
 
 /**
  * Class BudgetReportHelper.
+ *
+ * @codeCoverageIgnore
  */
 class BudgetReportHelper implements BudgetReportHelperInterface
 {
-    /** @var BudgetRepositoryInterface */
+    /** @var BudgetRepositoryInterface The budget repository interface. */
     private $repository;
 
     /**
@@ -47,9 +49,10 @@ class BudgetReportHelper implements BudgetReportHelperInterface
     }
 
     /**
-     * @SuppressWarnings(PHPMD.CyclomaticComplexity) // it's exactly 5.
-     * @SuppressWarnings(PHPMD.ExcessiveMethodLength) // all the arrays make it long.
+     * Get the full budget report.
      *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      * @param Carbon     $start
      * @param Carbon     $end
      * @param Collection $accounts
@@ -113,6 +116,8 @@ class BudgetReportHelper implements BudgetReportHelperInterface
     }
 
     /**
+     * Get all budgets and the expenses in these budgets.
+     *
      * @param Carbon     $start
      * @param Carbon     $end
      * @param Collection $accounts
@@ -143,6 +148,8 @@ class BudgetReportHelper implements BudgetReportHelperInterface
     }
 
     /**
+     * Calculate the expenses for a budget.
+     *
      * @param Budget      $budget
      * @param BudgetLimit $budgetLimit
      * @param Collection  $accounts

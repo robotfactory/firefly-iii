@@ -81,12 +81,14 @@ class MappedValuesValidator
      *
      * @return array
      * @throws FireflyException
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function validate(array $mappings): array
     {
         $return = [];
         Log::debug('Now in validateMappedValues()');
         foreach ($mappings as $role => $values) {
+            Log::debug(sprintf('Now at role "%s"', $role));
             $values = array_unique($values);
             if (\count($values) > 0) {
                 switch ($role) {
@@ -115,9 +117,11 @@ class MappedValuesValidator
                         $return[$role] = $valid;
                         break;
                     case 'category-id':
+                        Log::debug('Going to validate these category ids: ', $values);
                         $set           = $this->catRepos->getByIds($values);
                         $valid         = $set->pluck('id')->toArray();
                         $return[$role] = $valid;
+                        Log::debug('Valid category IDs are: ', $valid);
                         break;
                 }
             }

@@ -35,11 +35,16 @@ use Log;
  *
  * This is used in the mass-edit routine.
  *
+ * @codeCoverageIgnore
+ *
  */
 class TransactionViewFilter implements FilterInterface
 {
     /**
+     * See class description.
+     *
      * @param Collection $set
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      *
      * @return Collection
      */

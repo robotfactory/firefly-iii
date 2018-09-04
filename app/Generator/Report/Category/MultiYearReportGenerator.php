@@ -24,8 +24,8 @@ namespace FireflyIII\Generator\Report\Category;
 
 /**
  * Class MultiYearReportGenerator.
+ * @codeCoverageIgnore
  */
 class MultiYearReportGenerator extends MonthReportGenerator
 {
-    // Doesn't do anything different.
 }

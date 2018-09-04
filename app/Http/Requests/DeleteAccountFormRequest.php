@@ -23,24 +23,29 @@ declare(strict_types=1);
 namespace FireflyIII\Http\Requests;
 
 /**
- * @codeCoverageIgnore
  * Class DeleteAccountFormRequest.
+ *
+ * @codeCoverageIgnore
  */
 class DeleteAccountFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         // fixed
         return [

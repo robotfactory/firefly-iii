@@ -22,11 +22,22 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use FireflyIII\Models\Rule;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class RuleAction.
+ *
+ * @property string $action_value
+ * @property string $action_type
+ * @property int    $id
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property int    $order
+ * @property bool   $active
+ * @property bool   $stop_processing
+ * @property Rule   $rule
  */
 class RuleAction extends Model
 {
@@ -44,14 +55,14 @@ class RuleAction extends Model
             'stop_processing' => 'boolean',
         ];
 
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['rule_id', 'action_type', 'action_value', 'order', 'active', 'stop_processing'];
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function rule()
+    public function rule(): BelongsTo
     {
         return $this->belongsTo(Rule::class);
     }

@@ -25,6 +25,7 @@ namespace Tests\Unit\Factory;
 
 
 use FireflyIII\Factory\TagFactory;
+use Log;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,16 @@ use Tests\TestCase;
  */
 class TagFactoryTest extends TestCase
 {
+
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
     /**
      * @covers \FireflyIII\Factory\TagFactory
      */
@@ -51,7 +62,7 @@ class TagFactoryTest extends TestCase
      */
     public function testFindOrCreateNew(): void
     {
-        $tag = 'Some new tag#' . random_int(1, 1000);
+        $tag = 'Some new tag#' . random_int(1, 10000);
         /** @var TagFactory $factory */
         $factory = app(TagFactory::class);
         $factory->setUser($this->user());

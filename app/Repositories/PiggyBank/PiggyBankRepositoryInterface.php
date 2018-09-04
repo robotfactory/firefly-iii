@@ -101,13 +101,6 @@ interface PiggyBankRepositoryInterface
     public function destroy(PiggyBank $piggyBank): bool;
 
     /**
-     * @param int $piggyBankid
-     *
-     * @return PiggyBank
-     */
-    public function find(int $piggyBankid): PiggyBank;
-
-    /**
      * Find by name or return NULL.
      *
      * @param string $name
@@ -115,6 +108,13 @@ interface PiggyBankRepositoryInterface
      * @return PiggyBank|null
      */
     public function findByName(string $name): ?PiggyBank;
+
+    /**
+     * @param int $piggyBankId
+     *
+     * @return PiggyBank|null
+     */
+    public function findNull(int $piggyBankId): ?PiggyBank;
 
     /**
      * Get current amount saved in piggy bank.
@@ -201,13 +201,6 @@ interface PiggyBankRepositoryInterface
     public function removeAmount(PiggyBank $piggyBank, string $amount): bool;
 
     /**
-     * Set all piggy banks to order 0.
-     *
-     * @return bool
-     */
-    public function reset(): bool;
-
-    /**
      * Set specific piggy bank to specific order.
      *
      * @param PiggyBank $piggyBank
@@ -227,9 +220,9 @@ interface PiggyBankRepositoryInterface
      *
      * @param array $data
      *
-     * @return PiggyBank
+     * @return PiggyBank|null
      */
-    public function store(array $data): PiggyBank;
+    public function store(array $data): ?PiggyBank;
 
     /**
      * Update existing piggy bank.

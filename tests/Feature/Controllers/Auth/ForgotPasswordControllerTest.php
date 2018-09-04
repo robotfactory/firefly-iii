@@ -28,25 +28,20 @@ use Tests\TestCase;
 
 /**
  * Class ForgotPasswordControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class ForgotPasswordControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController::__construct
-     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController::sendResetLinkEmail
+     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController
      */
     public function testSendResetLinkEmail(): void
     {
@@ -62,8 +57,7 @@ class ForgotPasswordControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController::__construct
-     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController::sendResetLinkEmail
+     * @covers \FireflyIII\Http\Controllers\Auth\ForgotPasswordController
      */
     public function testSendResetLinkEmailDemo(): void
     {

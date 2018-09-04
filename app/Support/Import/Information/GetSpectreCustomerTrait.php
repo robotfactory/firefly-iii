@@ -51,7 +51,8 @@ trait GetSpectreCustomerTrait
             /** @var NewCustomerRequest $request */
             $request = app(NewCustomerRequest::class);
             $request->setUser($importJob->user);
-            // todo what if customer is still null?
+            $request->call();
+
             $customer = $request->getCustomer();
 
         }

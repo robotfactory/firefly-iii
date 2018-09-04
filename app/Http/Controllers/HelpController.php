@@ -22,98 +22,30 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers;
 
-use FireflyIII\Helpers\Help\HelpInterface;
-use Log;
-use Preferences;
+use FireflyIII\Support\Http\Controllers\RequestInformation;
+use Illuminate\Http\JsonResponse;
 
 /**
  * Class HelpController.
  */
 class HelpController extends Controller
 {
-    /** @var HelpInterface */
-    private $help;
+    use RequestInformation;
 
     /**
-     * HelpController constructor.
-     */
-    public function __construct()
-    {
-        parent::__construct();
-
-        $this->middleware(
-            function ($request, $next) {
-                $this->help = app(HelpInterface::class);
-
-                return $next($request);
-            }
-        );
-    }
-
-    /**
+     * Show help for a route.
+     *
      * @param   $route
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function show(string $route)
+    public function show(string $route): JsonResponse
     {
-        $language = Preferences::get('language', config('firefly.default_language', 'en_US'))->data;
+        /** @var string $language */
+        $language = app('preferences')->get('language', config('firefly.default_language', 'en_US'))->data;
         $html     = $this->getHelpText($route, $language);
 
         return response()->json(['html' => $html]);
     }
 
-    /**
-     * @param string $route
-     * @param string $language
-     *
-     * @return string
-     */
-    private function getHelpText(string $route, string $language): string
-    {
-        // get language and default variables.
-        $content = '<p>' . (string)trans('firefly.route_has_no_help') . '</p>';
-
-        // if no such route, log error and return default text.
-        if (!$this->help->hasRoute($route)) {
-            Log::error('No such route: ' . $route);
-
-            return $content;
-        }
-
-        // help content may be cached:
-        if ($this->help->inCache($route, $language)) {
-            $content = $this->help->getFromCache($route, $language);
-            Log::debug(sprintf('Help text %s was in cache.', $language));
-
-            return $content;
-        }
-
-        // get help content from Github:
-        $content = $this->help->getFromGithub($route, $language);
-
-        // content will have 0 length when Github failed. Try en_US when it does:
-        if (0 === \strlen($content)) {
-            $language = 'en_US';
-
-            // also check cache first:
-            if ($this->help->inCache($route, $language)) {
-                Log::debug(sprintf('Help text %s was in cache.', $language));
-                $content = $this->help->getFromCache($route, $language);
-
-                return $content;
-            }
-
-            $content = $this->help->getFromGithub($route, $language);
-        }
-
-        // help still empty?
-        if (0 !== \strlen($content)) {
-            $this->help->putInCache($route, $language, $content);
-
-            return $content;
-        }
-
-        return '<p>' . (string)trans('firefly.route_has_no_help') . '</p>';
-    }
 }

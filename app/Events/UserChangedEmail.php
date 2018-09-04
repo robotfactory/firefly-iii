@@ -29,18 +29,20 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Class UserChangedEmail.
+ *
+ * @codeCoverageIgnore
  */
 class UserChangedEmail extends Event
 {
     use SerializesModels;
 
-    /** @var string */
+    /** @var string The user's IP address */
     public $ipAddress;
-    /** @var string */
+    /** @var string The user's new email address */
     public $newEmail;
-    /** @var string */
+    /** @var string The user's old email address */
     public $oldEmail;
-    /** @var User */
+    /** @var User The user itself */
     public $user;
 
     /**

@@ -30,24 +30,20 @@ use Tests\TestCase;
 
 /**
  * Class TwoFactorControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class TwoFactorControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController::index
+     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController
      */
     public function testIndex(): void
     {
@@ -70,7 +66,7 @@ class TwoFactorControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController::index
+     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController
      */
     public function testIndexNo2FA(): void
     {
@@ -78,8 +74,8 @@ class TwoFactorControllerTest extends TestCase
 
         $falsePreference       = new Preference;
         $falsePreference->data = false;
-        $langPreference         = new Preference;
-        $langPreference->data   = 'en_US';
+        $langPreference        = new Preference;
+        $langPreference->data  = 'en_US';
 
         Preferences::shouldReceive('get')->withArgs(['twoFactorAuthEnabled', false])->andReturn($falsePreference)->twice();
         Preferences::shouldReceive('get')->withArgs(['twoFactorAuthSecret', null])->andReturn(null)->once();
@@ -92,8 +88,7 @@ class TwoFactorControllerTest extends TestCase
     }
 
     /**
-     * @covers                   \FireflyIII\Http\Controllers\Auth\TwoFactorController::index
-     * @expectedExceptionMessage Your two factor authentication secret is empty
+     * @covers                   \FireflyIII\Http\Controllers\Auth\TwoFactorController
      */
     public function testIndexNoSecret(): void
     {
@@ -116,7 +111,7 @@ class TwoFactorControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController::lostTwoFactor
+     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController
      */
     public function testLostTwoFactor(): void
     {
@@ -139,7 +134,7 @@ class TwoFactorControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController::postIndex
+     * @covers \FireflyIII\Http\Controllers\Auth\TwoFactorController
      */
     public function testPostIndex(): void
     {

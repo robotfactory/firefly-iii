@@ -1,5 +1,4 @@
 <?php
-
 /**
  * CreateImport.php
  * Copyright (c) 2018 thegrumpydictator@gmail.com
@@ -20,6 +19,8 @@
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @noinspection MultipleReturnStatementsInspection */
+
 declare(strict_types=1);
 
 namespace FireflyIII\Console\Commands;
@@ -33,10 +34,11 @@ use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Repositories\User\UserRepositoryInterface;
 use Illuminate\Console\Command;
 use Log;
-use Preferences;
 
 /**
  * Class CreateImport.
+ *
+ * @codeCoverageIgnore
  */
 class CreateImport extends Command
 {
@@ -81,9 +83,14 @@ class CreateImport extends Command
         $configuration     = (string)$this->argument('configuration');
         $user              = $userRepository->findNull((int)$this->option('user'));
         $cwd               = getcwd();
-        $type              = strtolower((string)$this->option('type'));
         $provider          = strtolower((string)$this->option('provider'));
         $configurationData = [];
+
+        if (null === $user) {
+            $this->errorLine('User is NULL.');
+
+            return 1;
+        }
 
         if (!$this->validArguments()) {
             $this->errorLine('Invalid arguments.');
@@ -145,7 +152,7 @@ class CreateImport extends Command
 
 
         if (true === $this->option('start')) {
-            $this->infoLine('The has started. The process is not visible. Please wait.');
+            $this->infoLine('The import routine has started. The process is not visible. Please wait.');
             Log::debug('Go for import!');
 
             // run it!
@@ -182,7 +189,7 @@ class CreateImport extends Command
                 }
                 $count++;
             }
-            if ($importJob->status === 'provider_finished') {
+            if ('provider_finished' === $importJob->status) {
                 $this->infoLine('Import has finished. Please wait for storage of data.');
                 // set job to be storing data:
                 $jobRepository->setStatus($importJob, 'storing_data');
@@ -226,7 +233,7 @@ class CreateImport extends Command
             }
         }
         // clear cache for user:
-        Preferences::setForUser($user, 'lastActivity', microtime());
+        app('preferences')->setForUser($user, 'lastActivity', microtime());
 
         return 0;
     }
@@ -260,8 +267,8 @@ class CreateImport extends Command
      */
     private function validArguments(): bool
     {
-        $file          = $this->argument('file');
-        $configuration = $this->argument('configuration');
+        $file          = (string)$this->argument('file');
+        $configuration = (string)$this->argument('configuration');
         $cwd           = getcwd();
         $validTypes    = config('import.options.file.import_formats');
         $type          = strtolower($this->option('type'));
@@ -274,19 +281,19 @@ class CreateImport extends Command
             return false;
         }
 
-        if ($provider === 'file' && !\in_array($type, $validTypes, true)) {
+        if ('file' === $provider && !\in_array($type, $validTypes, true)) {
             $this->errorLine(sprintf('Cannot import file of type "%s"', $type));
 
             return false;
         }
 
-        if ($provider === 'file' && !file_exists($file)) {
+        if ('file' === $provider && !file_exists($file)) {
             $this->errorLine(sprintf('Firefly III cannot find file "%s" (working directory: "%s").', $file, $cwd));
 
             return false;
         }
 
-        if ($provider === 'file' && !file_exists($configuration)) {
+        if ('file' === $provider && !file_exists($configuration)) {
             $this->errorLine(sprintf('Firefly III cannot find configuration file "%s" (working directory: "%s").', $configuration, $cwd));
 
             return false;

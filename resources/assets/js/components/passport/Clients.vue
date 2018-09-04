@@ -288,7 +288,7 @@
              */
             store() {
                 this.persistClient(
-                    'post', './oauth/clients',
+                    'post', './oauth/clients' + '?_token=' + document.head.querySelector('meta[name="csrf-token"]').content,
                     this.createForm, '#modal-create-client'
                 );
             },
@@ -309,7 +309,7 @@
              */
             update() {
                 this.persistClient(
-                    'put', './oauth/clients/' + this.editForm.id,
+                    'put', './oauth/clients/' + this.editForm.id + '?_token=' + document.head.querySelector('meta[name="csrf-token"]').content,
                     this.editForm, '#modal-edit-client'
                 );
             },

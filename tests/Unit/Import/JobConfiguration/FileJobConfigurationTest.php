@@ -27,6 +27,7 @@ namespace Tests\Unit\Import\JobConfiguration;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Import\JobConfiguration\FileJobConfiguration;
 use FireflyIII\Models\ImportJob;
+use FireflyIII\Repositories\ImportJob\ImportJobRepositoryInterface;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureMappingHandler;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureRolesHandler;
 use FireflyIII\Support\Import\JobConfiguration\File\ConfigureUploadHandler;
@@ -34,12 +35,22 @@ use FireflyIII\Support\Import\JobConfiguration\File\NewFileJobHandler;
 use Illuminate\Support\MessageBag;
 use Mockery;
 use Tests\TestCase;
-
+use Log;
 /**
  * Class FileJobConfigurationTest
  */
 class FileJobConfigurationTest extends TestCase
 {
+    /**
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+
     /**
      * No config, job is new.
      *
@@ -47,9 +58,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testCCFalse(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'File_A_unit_' . random_int(1, 1000);
+        $job->key           = 'File_A_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'fake';
@@ -70,9 +83,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testCCTrue(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'File_B_unit_' . random_int(1, 1000);
+        $job->key           = 'File_B_unit_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'ready_to_run';
         $job->provider      = 'fake';
@@ -93,9 +108,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testConfigureJob(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'I-file_' . random_int(1, 1000);
+        $job->key           = 'I-Cfile_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'map';
         $job->provider      = 'file';
@@ -103,8 +120,8 @@ class FileJobConfigurationTest extends TestCase
         $job->configuration = [];
         $job->save();
 
-        $bag          = new MessageBag;
-        $result       = null;
+        $bag    = new MessageBag;
+        $result = null;
 
         $configurator = new FileJobConfiguration;
         $configurator->setImportJob($job);
@@ -128,9 +145,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextDataCU(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'G-file_' . random_int(1, 1000);
+        $job->key           = 'G-Dfile_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'configure-upload';
         $job->provider      = 'file';
@@ -161,9 +180,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextDataMap(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'H-file_' . random_int(1, 1000);
+        $job->key           = 'H-Efile_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'map';
         $job->provider      = 'file';
@@ -194,9 +215,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextDataNew(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'F-file_' . random_int(1, 1000);
+        $job->key           = 'F-fFile_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'file';
@@ -227,9 +250,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextDataRoles(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'H-file_' . random_int(1, 1000);
+        $job->key           = 'H-fiGle_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'roles';
         $job->provider      = 'file';
@@ -260,9 +285,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextViewCU(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'Dfile_' . random_int(1, 1000);
+        $job->key           = 'DfiHle_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'configure-upload';
         $job->provider      = 'file';
@@ -288,9 +315,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextViewMap(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'Ffile_' . random_int(1, 1000);
+        $job->key           = 'FfilIe_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'map';
         $job->provider      = 'file';
@@ -316,9 +345,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextViewNew(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'Cfile_' . random_int(1, 1000);
+        $job->key           = 'CfJile_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'new';
         $job->provider      = 'file';
@@ -344,9 +375,11 @@ class FileJobConfigurationTest extends TestCase
      */
     public function testGetNextViewRoles(): void
     {
+        $jobRepos = $this->mock(ImportJobRepositoryInterface::class);
+        $jobRepos->shouldReceive('setUser')->once()->atLeast();
         $job                = new ImportJob;
         $job->user_id       = $this->user()->id;
-        $job->key           = 'Efile_' . random_int(1, 1000);
+        $job->key           = 'EfiKle_' . random_int(1, 10000);
         $job->status        = 'new';
         $job->stage         = 'roles';
         $job->provider      = 'file';

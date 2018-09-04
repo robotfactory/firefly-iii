@@ -38,15 +38,19 @@ use Log;
 class ReportFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Validate list of accounts.
+     *
      * @return Collection
      */
     public function getAccountList(): Collection
@@ -69,6 +73,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate list of budgets.
+     *
      * @return Collection
      */
     public function getBudgetList(): Collection
@@ -90,6 +96,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate list of categories.
+     *
      * @return Collection
      */
     public function getCategoryList(): Collection
@@ -111,6 +119,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate end date.
+     *
      * @return Carbon
      *
      * @throws FireflyException
@@ -125,8 +135,9 @@ class ReportFormRequest extends Request
                 $date = new Carbon($parts[1]);
                 // @codeCoverageIgnoreStart
             } catch (Exception $e) {
-                Log::error(sprintf('"%s" is not a valid date range.', $range));
-                throw new FireflyException(sprintf('"%s" is not a valid date range.', $range));
+                $error = sprintf('"%s" is not a valid date range: %s', $range, $e->getMessage());
+                Log::error($error);
+                throw new FireflyException($error);
                 // @codeCoverageIgnoreEnd
             }
 
@@ -136,6 +147,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate list of expense accounts.
+     *
      * @return Collection
      */
     public function getExpenseList(): Collection
@@ -158,6 +171,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate start date.
+     *
      * @return Carbon
      *
      * @throws FireflyException
@@ -172,8 +187,9 @@ class ReportFormRequest extends Request
                 $date = new Carbon($parts[0]);
                 // @codeCoverageIgnoreStart
             } catch (Exception $e) {
-                Log::error(sprintf('"%s" is not a valid date range.', $range));
-                throw new FireflyException(sprintf('"%s" is not a valid date range.', $range));
+                $error = sprintf('"%s" is not a valid date range: %s', $range, $e->getMessage());
+                Log::error($error);
+                throw new FireflyException($error);
                 // @codeCoverageIgnoreEnd
             }
         }
@@ -182,6 +198,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Validate list of tags.
+     *
      * @return Collection
      */
     public function getTagList(): Collection
@@ -193,8 +211,14 @@ class ReportFormRequest extends Request
         if (\is_array($set)) {
             foreach ($set as $tagTag) {
                 $tag = $repository->findByTag($tagTag);
-                if (null !== $tag->id) {
+                if (null !== $tag) {
                     $collection->push($tag);
+                    continue;
+                }
+                $tag = $repository->findNull((int)$tagTag);
+                if (null !== $tag) {
+                    $collection->push($tag);
+                    continue;
                 }
             }
         }
@@ -203,6 +227,8 @@ class ReportFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
     public function rules(): array

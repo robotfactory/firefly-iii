@@ -33,6 +33,8 @@ class BillRequest extends Request
 {
 
     /**
+     * Authorize logged in users.
+     *
      * @return bool
      */
     public function authorize(): bool
@@ -42,6 +44,8 @@ class BillRequest extends Request
     }
 
     /**
+     * Get all data from the request.
+     *
      * @return array
      */
     public function getAll(): array
@@ -64,6 +68,8 @@ class BillRequest extends Request
     }
 
     /**
+     * The rules that the incoming request must be matched against.
+     *
      * @return array
      */
     public function rules(): array
@@ -86,8 +92,8 @@ class BillRequest extends Request
                 break;
             case 'PUT':
             case 'PATCH':
-                $bill           = $this->route()->parameter('bill');
-                $rules['name']  .= ',' . $bill->id;
+                $bill          = $this->route()->parameter('bill');
+                $rules['name'] .= ',' . $bill->id;
                 break;
         }
 
@@ -109,7 +115,7 @@ class BillRequest extends Request
                 $min  = (float)($data['amount_min'] ?? 0);
                 $max  = (float)($data['amount_max'] ?? 0);
                 if ($min > $max) {
-                    $validator->errors()->add('amount_min', trans('validation.amount_min_over_max'));
+                    $validator->errors()->add('amount_min', (string)trans('validation.amount_min_over_max'));
                 }
             }
         );

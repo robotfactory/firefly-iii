@@ -22,21 +22,27 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Requests;
 
+use FireflyIII\Models\PiggyBank;
+
 /**
  * Class PiggyBankFormRequest.
  */
 class PiggyBankFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Returns the data required by the controller.
+     *
      * @return array
      */
     public function getPiggyBankData(): array
@@ -47,27 +53,33 @@ class PiggyBankFormRequest extends Request
             'account_id'   => $this->integer('account_id'),
             'targetamount' => $this->string('targetamount'),
             'targetdate'   => $this->date('targetdate'),
-            'note'         => $this->string('note'),
+            'notes'        => $this->string('notes'),
         ];
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         $nameRule = 'required|between:1,255|uniquePiggyBankForUser';
-        if ($this->integer('id')) {
-            $nameRule = 'required|between:1,255|uniquePiggyBankForUser:' . $this->integer('id');
+
+        /** @var PiggyBank $piggy */
+        $piggy = $this->route()->parameter('piggyBank');
+
+        if (null !== $piggy) {
+            $nameRule = 'required|between:1,255|uniquePiggyBankForUser:' . $piggy->id;
         }
 
         $rules = [
-            'name'                            => $nameRule,
-            'account_id'                      => 'required|belongsToUser:accounts',
-            'targetamount'                    => 'required|numeric|more:0',
-            'startdate'                       => 'date',
-            'targetdate'                      => 'date|nullable',
-            'order'                           => 'integer|min:1',
+            'name'         => $nameRule,
+            'account_id'   => 'required|belongsToUser:accounts',
+            'targetamount' => 'required|numeric|more:0',
+            'startdate'    => 'date',
+            'targetdate'   => 'date|nullable',
+            'order'        => 'integer|min:1',
         ];
 
         return $rules;

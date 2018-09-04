@@ -29,6 +29,7 @@ use FireflyIII\Models\AccountType;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class OpposingAccountIbansTest
@@ -36,7 +37,17 @@ use Tests\TestCase;
 class OpposingAccountIbansTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\Import\Mapper\OpposingAccountIbans::getMap()
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+
+    /**
+     * @covers \FireflyIII\Import\Mapper\OpposingAccountIbans
      */
     public function testGetMapBasic(): void
     {

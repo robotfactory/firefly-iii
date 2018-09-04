@@ -52,7 +52,7 @@ class TriggerFactory
      *
      * @throws FireflyException
      */
-    public static function getTrigger(RuleTrigger $trigger)
+    public static function getTrigger(RuleTrigger $trigger): AbstractTrigger
     {
         $triggerType = $trigger->trigger_type;
 
@@ -84,12 +84,12 @@ class TriggerFactory
      *
      * @throws FireflyException
      */
-    public static function makeTriggerFromStrings(string $triggerType, string $triggerValue, bool $stopProcessing)
+    public static function makeTriggerFromStrings(string $triggerType, string $triggerValue, bool $stopProcessing): AbstractTrigger
     {
         /** @var AbstractTrigger $class */
         $class = self::getTriggerClass($triggerType);
         $obj   = $class::makeFromStrings($triggerValue, $stopProcessing);
-        Log::debug('Created trigger from string', ['type' => $triggerType, 'value' => $triggerValue, 'stopProcessing' => $stopProcessing, 'class' => $class]);
+        Log::debug('Created trigger from string', ['type' => $triggerType, 'value' => $triggerValue, 'stop_processing' => $stopProcessing, 'class' => $class]);
 
         return $obj;
     }

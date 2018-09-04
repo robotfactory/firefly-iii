@@ -32,10 +32,12 @@ use Log;
  * This filter removes any filters that are from A to B or from B to A given a set of
  * account id's (in $parameters) where A and B are mentioned. So transfers between the mentioned
  * accounts will be removed.
+ *
+ * @codeCoverageIgnore
  */
 class InternalTransferFilter implements FilterInterface
 {
-    /** @var array */
+    /** @var array The accounts */
     private $accounts;
 
     /**
@@ -49,6 +51,8 @@ class InternalTransferFilter implements FilterInterface
     }
 
     /**
+     * See class description.
+     *
      * @param Collection $set
      *
      * @return Collection
@@ -61,7 +65,7 @@ class InternalTransferFilter implements FilterInterface
                     return $transaction;
                 }
                 // both id's in $parameters?
-                if (\in_array($transaction->account_id, $this->accounts) && \in_array($transaction->opposing_account_id, $this->accounts)) {
+                if (\in_array($transaction->account_id, $this->accounts, true) && \in_array($transaction->opposing_account_id, $this->accounts, true)) {
                     Log::debug(
                         sprintf(
                             'Transaction #%d has #%d and #%d in set, so removed',

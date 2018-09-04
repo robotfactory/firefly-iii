@@ -25,12 +25,15 @@ namespace FireflyIII\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use FireflyIII\Models\TransactionJournal;
 
 /**
  * Class TransactionJournalMeta.
- * @property string $name
- * @property int $transaction_journal_id
+ *
+ * @property string             $name
+ * @property int                $transaction_journal_id
+ * @property TransactionJournal $transactionJournal
+ * @property string             $data
+ * @property int                $id
  */
 class TransactionJournalMeta extends Model
 {
@@ -46,9 +49,9 @@ class TransactionJournalMeta extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['transaction_journal_id', 'name', 'data', 'hash'];
-    /** @var string */
+    /** @var string The table to store the data in */
     protected $table = 'journal_meta';
 
     /**
@@ -68,7 +71,7 @@ class TransactionJournalMeta extends Model
      *
      * @param $value
      */
-    public function setDataAttribute($value)
+    public function setDataAttribute($value): void
     {
         $data                     = json_encode($value);
         $this->attributes['data'] = $data;
@@ -77,7 +80,7 @@ class TransactionJournalMeta extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function transactionJournal(): BelongsTo
     {

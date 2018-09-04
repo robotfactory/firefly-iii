@@ -23,24 +23,29 @@ declare(strict_types=1);
 namespace FireflyIII\Http\Requests;
 
 /**
- * @codeCoverageIgnore
  * Class UserRegistrationRequest.
+ *
+ * @codeCoverageIgnore
  */
 class UserRegistrationRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only everybody
         return true;
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         // fixed
         return [

@@ -28,6 +28,7 @@ use FireflyIII\Models\Bill;
 use FireflyIII\Repositories\Bill\BillRepositoryInterface;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
+use Log;
 
 /**
  * Class BillsTest
@@ -35,7 +36,17 @@ use Tests\TestCase;
 class BillsTest extends TestCase
 {
     /**
-     * @covers \FireflyIII\Import\Mapper\Bills::getMap()
+     *
+     */
+    public function setUp(): void
+    {
+        parent::setUp();
+        Log::info(sprintf('Now in %s.', \get_class($this)));
+    }
+
+
+    /**
+     * @covers \FireflyIII\Import\Mapper\Bills
      */
     public function testGetMapBasic(): void
     {

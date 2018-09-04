@@ -43,7 +43,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Basic account display.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testBasic(): void
     {
@@ -81,7 +81,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Basic account display with custom date parameter.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testBasicDate(): void
     {
@@ -119,7 +119,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Assert account has credit card meta data, should NOT be ignored in output.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testCCDataAsset(): void
     {
@@ -142,7 +142,7 @@ class AccountTransformerTest extends TestCase
                 'noteable_id'   => $account->id,
                 'noteable_type' => Account::class,
                 'title'         => null,
-                'text'          => 'I am a note #' . random_int(1, 1000),
+                'text'          => 'I am a note #' . random_int(1, 10000),
             ]
         );
 
@@ -210,7 +210,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Expense account has credit card meta data, should be ignored in output.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testIgnoreCCExpense(): void
     {
@@ -233,7 +233,7 @@ class AccountTransformerTest extends TestCase
                 'noteable_id'   => $account->id,
                 'noteable_type' => Account::class,
                 'title'         => null,
-                'text'          => 'I am a note #' . random_int(1, 1000),
+                'text'          => 'I am a note #' . random_int(1, 10000),
             ]
         );
 
@@ -295,7 +295,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Basic account display.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testOpeningBalance(): void
     {
@@ -353,7 +353,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Account has currency preference, should be reflected in output.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testWithCurrency(): void
     {
@@ -399,7 +399,7 @@ class AccountTransformerTest extends TestCase
     /**
      * Account has notes, should be reflected in output.
      *
-     * @covers \FireflyIII\Transformers\AccountTransformer::transform
+     * @covers \FireflyIII\Transformers\AccountTransformer
      */
     public function testWithNotes(): void
     {
@@ -421,7 +421,7 @@ class AccountTransformerTest extends TestCase
                 'noteable_id'   => $account->id,
                 'noteable_type' => Account::class,
                 'title'         => null,
-                'text'          => 'I am a note #' . random_int(1, 1000),
+                'text'          => 'I am a note #' . random_int(1, 10000),
             ]
         );
 

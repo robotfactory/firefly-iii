@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Crypt;
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\User;
@@ -30,18 +31,35 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Collection;
 use Log;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class Account.
  *
- * @property int $id
- * @property string $name
- * @property string $iban
+ * @property int         $id
+ * @property string      $name
+ * @property string      $iban
  * @property AccountType $accountType
+ * @property bool        $active
+ * @property string      $virtual_balance
+ * @property User        $user
+ * @property string      startBalance
+ * @property string      endBalance
+ * @property string      difference
+ * @property Carbon      lastActivityDate
+ * @property Collection  accountMeta
+ * @property bool        encrypted
+ * @property int         account_type_id
+ * @property Collection  piggyBanks
+ * @property string      $interest
+ * @property string      $interestPeriod
+ * @property string      accountTypeString
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class Account extends Model
 {
@@ -60,66 +78,29 @@ class Account extends Model
             'active'     => 'boolean',
             'encrypted'  => 'boolean',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['user_id', 'account_type_id', 'name', 'active', 'virtual_balance', 'iban'];
-    /** @var array */
+    /** @var array Hidden from view */
     protected $hidden = ['encrypted'];
     /** @var bool */
     private $joinedAccountTypes;
 
     /**
-     * @param array $fields
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
      *
-     * @return Account
-     *
-     * @deprecated
-     *
-     * @throws FireflyException
-     */
-    public static function firstOrCreateEncrypted(array $fields)
-    {
-        if (!isset($fields['user_id'])) {
-            throw new FireflyException('Missing required field "user_id".');
-        }
-        // everything but the name:
-        $query  = self::orderBy('id');
-        $search = $fields;
-        unset($search['name'], $search['iban']);
-
-        foreach ($search as $name => $value) {
-            $query->where($name, $value);
-        }
-        $set = $query->get(['accounts.*']);
-
-        // account must have a name. If not set, use IBAN.
-        if (!isset($fields['name'])) {
-            $fields['name'] = $fields['iban'];
-        }
-
-        /** @var Account $account */
-        foreach ($set as $account) {
-            if ($account->name === $fields['name']) {
-                return $account;
-            }
-        }
-
-        // create it!
-        $account = self::create($fields);
-
-        return $account;
-    }
-
-    /**
      * @param string $value
      *
      * @return Account
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): Account
     {
         if (auth()->check()) {
             $accountId = (int)$value;
-            $account   = auth()->user()->accounts()->find($accountId);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var Account $account */
+            $account = $user->accounts()->find($accountId);
             if (null !== $account) {
                 return $account;
             }
@@ -169,7 +150,7 @@ class Account extends Model
      */
     public function getIbanAttribute($value): string
     {
-        if (null === $value || '' === (string)$value) {
+        if ('' === (string)$value) {
             return '';
         }
         try {
@@ -184,25 +165,6 @@ class Account extends Model
         }
 
         return $result;
-    }
-
-    /**
-     * @codeCoverageIgnore
-     *
-     * @param string $fieldName
-     *
-     * @deprecated
-     * @return string
-     */
-    public function getMeta(string $fieldName): string
-    {
-        foreach ($this->accountMeta as $meta) {
-            if ($meta->name === $fieldName) {
-                return (string)$meta->data;
-            }
-        }
-
-        return '';
     }
 
     /**
@@ -244,7 +206,7 @@ class Account extends Model
      * @codeCoverageIgnore
      * Get all of the notes.
      */
-    public function notes()
+    public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'noteable');
     }
@@ -264,7 +226,7 @@ class Account extends Model
      * @param EloquentBuilder $query
      * @param array           $types
      */
-    public function scopeAccountTypeIn(EloquentBuilder $query, array $types)
+    public function scopeAccountTypeIn(EloquentBuilder $query, array $types): void
     {
         if (null === $this->joinedAccountTypes) {
             $query->leftJoin('account_types', 'account_types.id', '=', 'accounts.account_type_id');
@@ -274,35 +236,12 @@ class Account extends Model
     }
 
     /**
-     * @codeCoverageIgnore
-     * @deprecated
-     *
-     * @param EloquentBuilder $query
-     * @param string          $name
-     * @param string          $value
-     *
-     */
-    public function scopeHasMetaValue(EloquentBuilder $query, $name, $value)
-    {
-        $joinName = str_replace('.', '_', $name);
-        $query->leftJoin(
-            'account_meta as ' . $joinName,
-            function (JoinClause $join) use ($joinName, $name) {
-                $join->on($joinName . '.account_id', '=', 'accounts.id')->where($joinName . '.name', '=', $name);
-            }
-        );
-        $query->where($joinName . '.data', json_encode($value));
-    }
-
-    /**
-     * @codeCoverageIgnore
-     *
      * @param $value
      *
      * @codeCoverageIgnore
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setIbanAttribute($value)
+    public function setIbanAttribute($value): void
     {
         $this->attributes['iban'] = Crypt::encrypt($value);
     }
@@ -314,7 +253,7 @@ class Account extends Model
      *
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setNameAttribute($value)
+    public function setNameAttribute($value): void
     {
         $encrypt                       = config('firefly.encryption');
         $this->attributes['name']      = $encrypt ? Crypt::encrypt($value) : $value;
@@ -328,7 +267,7 @@ class Account extends Model
      *
      * @codeCoverageIgnore
      */
-    public function setVirtualBalanceAttribute($value)
+    public function setVirtualBalanceAttribute($value): void
     {
         $this->attributes['virtual_balance'] = (string)$value;
     }

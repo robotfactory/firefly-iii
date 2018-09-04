@@ -26,8 +26,10 @@ namespace FireflyIII\Services\Spectre\Object;
 use Carbon\Carbon;
 
 /**
- * @codeCoverageIgnore
  * Class Account
+ *
+ * @codeCoverageIgnore
+ * @SuppressWarnings(PHPMD.ShortVariable)
  */
 class Account extends SpectreObject
 {
@@ -65,8 +67,8 @@ class Account extends SpectreObject
         $this->nature       = $data['nature'];
         $this->createdAt    = new Carbon($data['created_at']);
         $this->updatedAt    = new Carbon($data['updated_at']);
-
-        foreach ($data['extra'] as $key => $value) {
+        $extraArray         = \is_array($data['extra']) ? $data['extra'] : [];
+        foreach ($extraArray as $key => $value) {
             $this->extra[$key] = $value;
         }
     }

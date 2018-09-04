@@ -30,11 +30,15 @@ use Illuminate\Support\Collection;
 
 /**
  * Class SplitIndicatorFilter
+ *
+ * @codeCoverageIgnore
  */
 class SplitIndicatorFilter implements FilterInterface
 {
 
     /**
+     * Adds a property if the journal is a split one.
+     *
      * @param Collection $set
      *
      * @return Collection

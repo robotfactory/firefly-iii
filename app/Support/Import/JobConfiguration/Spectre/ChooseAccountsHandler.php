@@ -65,7 +65,6 @@ class ChooseAccountsHandler implements SpectreJobConfigurationInterface
         $importAccounts = $config['account_mapping'] ?? [];
         $complete       = \count($importAccounts) > 0 && $importAccounts !== [0 => 0];
         if ($complete) {
-            // todo also actually validate content.
             Log::debug('Looks like user has mapped import accounts to Firefly III accounts', $importAccounts);
             $this->repository->setStage($this->importJob, 'go-for-import');
         }
@@ -83,9 +82,10 @@ class ChooseAccountsHandler implements SpectreJobConfigurationInterface
     public function configureJob(array $data): MessageBag
     {
         Log::debug('Now in ChooseAccountsHandler::configureJob()', $data);
-        $config  = $this->importJob->configuration;
-        $mapping = $data['account_mapping'] ?? [];
-        $final   = [];
+        $config     = $this->importJob->configuration;
+        $mapping    = $data['account_mapping'] ?? [];
+        $final      = [];
+        $applyRules = 1 === (int)($data['apply_rules'] ?? 0);
         foreach ($mapping as $spectreId => $localId) {
             // validate each
             $spectreId         = $this->validSpectreAccount((int)$spectreId);
@@ -96,10 +96,10 @@ class ChooseAccountsHandler implements SpectreJobConfigurationInterface
         Log::debug('Final mapping is:', $final);
         $messages                  = new MessageBag;
         $config['account_mapping'] = $final;
-
+        $config['apply-rules']     = $applyRules;
         $this->repository->setConfiguration($this->importJob, $config);
-        if ($final === [0 => 0] || \count($final) === 0) {
-            $messages->add('count', trans('import.spectre_no_mapping'));
+        if ($final === [0 => 0] || 0 === \count($final)) {
+            $messages->add('count', (string)trans('import.spectre_no_mapping'));
         }
 
         return $messages;
@@ -110,13 +110,14 @@ class ChooseAccountsHandler implements SpectreJobConfigurationInterface
      *
      * @return array
      * @throws FireflyException
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function getNextData(): array
     {
         Log::debug('Now in ChooseAccountsHandler::getnextData()');
         $config   = $this->importJob->configuration;
         $accounts = $config['accounts'] ?? [];
-        if (\count($accounts) === 0) {
+        if (0 === \count($accounts)) {
             throw new FireflyException('It seems you have no accounts with this bank. The import cannot continue.'); // @codeCoverageIgnore
         }
         $converted = [];
@@ -128,15 +129,15 @@ class ChooseAccountsHandler implements SpectreJobConfigurationInterface
         $login    = null;
         $logins   = $config['all-logins'] ?? [];
         $selected = $config['selected-login'] ?? 0;
-        if (\count($logins) === 0) {
+        if (0 === \count($logins)) {
             throw new FireflyException('It seems you have no configured logins in this import job. The import cannot continue.'); // @codeCoverageIgnore
         }
         Log::debug(sprintf('Selected login to use is %d', $selected));
-        if ($selected === 0) {
+        if (0 === $selected) {
             $login = new Login($logins[0]);
             Log::debug(sprintf('Will use login %d (%s %s)', $login->getId(), $login->getProviderName(), $login->getCountryCode()));
         }
-        if ($selected !== 0) {
+        if (0 !== $selected) {
             foreach ($logins as $loginArray) {
                 $loginId = $loginArray['id'] ?? -1;
                 if ($loginId === $selected) {

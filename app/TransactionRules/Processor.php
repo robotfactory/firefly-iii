@@ -38,7 +38,7 @@ use Log;
 /**
  * Class Processor.
  */
-final class Processor
+class Processor
 {
     /** @var Collection Actions to exectute */
     public $actions;
@@ -56,89 +56,26 @@ final class Processor
     /**
      * Processor constructor.
      */
-    private function __construct()
+    public function __construct()
     {
         $this->triggers = new Collection;
         $this->actions  = new Collection;
     }
 
     /**
-     * This method will make a Processor that will process each transaction journal using the triggers
-     * and actions found in the given Rule.
-     *
-     * @param Rule $rule
-     * @param bool $includeActions
-     *
-     * @return Processor
-     * @throws \FireflyIII\Exceptions\FireflyException
+     * @return bool
      */
-    public static function make(Rule $rule, $includeActions = true)
+    public function isStrict(): bool
     {
-        Log::debug(sprintf('Making new rule from Rule %d', $rule->id));
-        Log::debug(sprintf('Rule is strict: %s', var_export($rule->strict, true)));
-        $self         = new self;
-        $self->rule   = $rule;
-        $self->strict = $rule->strict;
-        $triggerSet   = $rule->ruleTriggers()->orderBy('order', 'ASC')->get();
-        /** @var RuleTrigger $trigger */
-        foreach ($triggerSet as $trigger) {
-            Log::debug(sprintf('Push trigger %d', $trigger->id));
-            $self->triggers->push(TriggerFactory::getTrigger($trigger));
-        }
-        if ($includeActions) {
-            $self->actions = $rule->ruleActions()->orderBy('order', 'ASC')->get();
-        }
-
-        return $self;
+        return $this->strict;
     }
 
     /**
-     * This method will make a Processor that will process each transaction journal using the given
-     * trigger (singular!). It can only report if the transaction journal was hit by the given trigger
-     * and will not be able to act on it using actions.
-     *
-     * @param string $triggerName
-     * @param string $triggerValue
-     *
-     * @return Processor
-     *
-     * @throws \FireflyIII\Exceptions\FireflyException
+     * @param bool $strict
      */
-    public static function makeFromString(string $triggerName, string $triggerValue)
+    public function setStrict(bool $strict): void
     {
-        Log::debug(sprintf('Processor::makeFromString("%s", "%s")', $triggerName, $triggerValue));
-        $self    = new self;
-        $trigger = TriggerFactory::makeTriggerFromStrings($triggerName, $triggerValue, false);
-        $self->triggers->push($trigger);
-
-        return $self;
-    }
-
-    /**
-     * This method will make a Processor that will process each transaction journal using the given
-     * triggers. It can only report if the transaction journal was hit by the given triggers
-     * and will not be able to act on it using actions.
-     *
-     * The given triggers must be in the following format:
-     *
-     * [type => xx, value => yy, stopProcessing => bool], [type => xx, value => yy, stopProcessing => bool],
-     *
-     * @param array $triggers
-     *
-     * @return Processor
-     *
-     * @throws \FireflyIII\Exceptions\FireflyException
-     */
-    public static function makeFromStringArray(array $triggers)
-    {
-        $self = new self;
-        foreach ($triggers as $entry) {
-            $entry['value'] = $entry['value'] ?? '';
-            $trigger        = TriggerFactory::makeTriggerFromStrings($entry['type'], $entry['value'], $entry['stopProcessing']);
-            $self->triggers->push($trigger);
-        }
-
-        return $self;
+        $this->strict = $strict;
     }
 
     /**
@@ -156,7 +93,7 @@ final class Processor
      *
      * @param int $foundTriggers
      */
-    public function setFoundTriggers(int $foundTriggers)
+    public function setFoundTriggers(int $foundTriggers): void
     {
         $this->foundTriggers = $foundTriggers;
     }
@@ -234,12 +171,79 @@ final class Processor
     }
 
     /**
-     * Run the actions
+     * This method will make a Processor that will process each transaction journal using the triggers
+     * and actions found in the given Rule.
      *
-     * @return bool
+     * @param Rule $rule
+     * @param bool $includeActions
+     *
      * @throws \FireflyIII\Exceptions\FireflyException
      */
-    private function actions()
+    public function make(Rule $rule, bool $includeActions = null): void
+    {
+        $includeActions = $includeActions ?? true;
+        Log::debug(sprintf('Making new rule from Rule %d', $rule->id));
+        Log::debug(sprintf('Rule is strict: %s', var_export($rule->strict, true)));
+        $this->rule   = $rule;
+        $this->strict = $rule->strict;
+        $triggerSet   = $rule->ruleTriggers()->orderBy('order', 'ASC')->get();
+        /** @var RuleTrigger $trigger */
+        foreach ($triggerSet as $trigger) {
+            Log::debug(sprintf('Push trigger %d', $trigger->id));
+            $this->triggers->push(TriggerFactory::getTrigger($trigger));
+        }
+        if (true === $includeActions) {
+            $this->actions = $rule->ruleActions()->orderBy('order', 'ASC')->get();
+        }
+    }
+
+    /**
+     * This method will make a Processor that will process each transaction journal using the given
+     * trigger (singular!). It can only report if the transaction journal was hit by the given trigger
+     * and will not be able to act on it using actions.
+     *
+     * @param string $triggerName
+     * @param string $triggerValue
+     *
+     * @throws \FireflyIII\Exceptions\FireflyException
+     */
+    public function makeFromString(string $triggerName, string $triggerValue): void
+    {
+        Log::debug(sprintf('Processor::makeFromString("%s", "%s")', $triggerName, $triggerValue));
+        $trigger = TriggerFactory::makeTriggerFromStrings($triggerName, $triggerValue, false);
+        $this->triggers->push($trigger);
+    }
+
+    /**
+     * This method will make a Processor that will process each transaction journal using the given
+     * triggers. It can only report if the transaction journal was hit by the given triggers
+     * and will not be able to act on it using actions.
+     *
+     * The given triggers must be in the following format:
+     *
+     * [type => xx, value => yy, stop_processing => bool], [type => xx, value => yy, stop_processing => bool],
+     *
+     * @param array $triggers
+     *
+     * @throws \FireflyIII\Exceptions\FireflyException
+     */
+    public function makeFromStringArray(array $triggers): void
+    {
+        foreach ($triggers as $entry) {
+            $entry['value'] = $entry['value'] ?? '';
+            $trigger        = TriggerFactory::makeTriggerFromStrings($entry['type'], $entry['value'], $entry['stop_processing']);
+            $this->triggers->push($trigger);
+        }
+
+    }
+
+    /**
+     * Run the actions
+     *
+     * @return void
+     * @throws \FireflyIII\Exceptions\FireflyException
+     */
+    private function actions(): void
     {
         /**
          * @var int
@@ -255,8 +259,6 @@ final class Processor
                 break;
             }
         }
-
-        return true;
     }
 
     /**

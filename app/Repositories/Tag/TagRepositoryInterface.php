@@ -24,7 +24,6 @@ namespace FireflyIII\Repositories\Tag;
 
 use Carbon\Carbon;
 use FireflyIII\Models\Tag;
-use FireflyIII\Models\TransactionJournal;
 use FireflyIII\User;
 use Illuminate\Support\Collection;
 
@@ -33,16 +32,6 @@ use Illuminate\Support\Collection;
  */
 interface TagRepositoryInterface
 {
-    /**
-     * This method will connect a journal with a tag.
-     *
-     * @param TransactionJournal $journal
-     * @param Tag                $tag
-     *
-     * @return bool
-     */
-    public function connect(TransactionJournal $journal, Tag $tag): bool;
-
     /**
      * @return int
      */
@@ -67,6 +56,13 @@ interface TagRepositoryInterface
     public function earnedInPeriod(Tag $tag, Carbon $start, Carbon $end): string;
 
     /**
+     * @param string $tag
+     *
+     * @return Tag|null
+     */
+    public function findByTag(string $tag): ?Tag;
+
+    /**
      * @param int $tagId
      *
      * @return Tag|null
@@ -74,25 +70,11 @@ interface TagRepositoryInterface
     public function findNull(int $tagId): ?Tag;
 
     /**
-     * @param int $tagId
-     * @deprecated
-     * @return Tag
-     */
-    public function find(int $tagId): Tag;
-
-    /**
-     * @param string $tag
-     *
-     * @return Tag
-     */
-    public function findByTag(string $tag): Tag;
-
-    /**
      * @param Tag $tag
      *
      * @return Carbon
      */
-    public function firstUseDate(Tag $tag): Carbon;
+    public function firstUseDate(Tag $tag): ?Carbon;
 
     /**
      * This method returns all the user's tags.
@@ -102,30 +84,26 @@ interface TagRepositoryInterface
     public function get(): Collection;
 
     /**
-     * @param string $type
-     *
-     * @return Collection
-     */
-    public function getByType(string $type): Collection;
-
-    /**
      * @param Tag $tag
      *
-     * @return Carbon
+     * @return Carbon|null
      */
-    public function lastUseDate(Tag $tag): Carbon;
+    public function lastUseDate(Tag $tag): ?Carbon;
 
     /**
      * Will return the newest tag (if known) or NULL.
+     *
+     * @return Tag|null
+     */
+    public function newestTag(): ?Tag;
+
+    /**
+     * Will return the newest tag (if known) or NULL.
+     *
      * @return Tag|null
      */
     public function oldestTag(): ?Tag;
 
-    /**
-     * Will return the newest tag (if known) or NULL.
-     * @return Tag|null
-     */
-    public function newestTag(): ?Tag;
     /**
      * @param User $user
      */
@@ -148,15 +126,6 @@ interface TagRepositoryInterface
      * @return Tag
      */
     public function store(array $data): Tag;
-
-    /**
-     * @param Tag         $tag
-     * @param Carbon|null $start
-     * @param Carbon|null $end
-     *
-     * @return string
-     */
-    public function sumOfTag(Tag $tag, ?Carbon $start, ?Carbon $end): string;
 
     /**
      * Calculates various amounts in tag.

@@ -24,10 +24,13 @@ namespace FireflyIII\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use FireflyIII\Models\Account;
 
 /**
  * Class AccountMeta.
+ *
+ * @property string $data
+ * @property string $name
+ * @property int    $account_id
  */
 class AccountMeta extends Model
 {
@@ -41,11 +44,9 @@ class AccountMeta extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['account_id', 'name', 'data'];
-    /**
-     * @var string
-     */
+    /** @var string The table to store the data in */
     protected $table = 'account_meta';
 
     /**
@@ -73,7 +74,7 @@ class AccountMeta extends Model
      *
      * @codeCoverageIgnore
      */
-    public function setDataAttribute($value)
+    public function setDataAttribute($value): void
     {
         $this->attributes['data'] = json_encode($value);
     }

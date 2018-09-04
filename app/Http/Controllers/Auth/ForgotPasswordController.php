@@ -18,6 +18,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+/** @noinspection PhpDynamicAsStaticMethodCallInspection */
 declare(strict_types=1);
 
 namespace FireflyIII\Http\Controllers\Auth;
@@ -35,17 +36,6 @@ use Illuminate\Support\Facades\Password;
  */
 class ForgotPasswordController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Password Reset Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller is responsible for handling password reset emails and
-    | includes a trait which assists in sending these notifications from
-    | your application to your users. Feel free to explore this trait.
-    |
-    */
-
     use SendsPasswordResetEmails;
 
     /**
@@ -74,7 +64,7 @@ class ForgotPasswordController extends Controller
         $user = User::where('email', $request->get('email'))->first();
 
         if (null !== $user && $repository->hasRole($user, 'demo')) {
-            return back()->withErrors(['email' => trans('firefly.cannot_reset_demo_user')]);
+            return back()->withErrors(['email' => (string)trans('firefly.cannot_reset_demo_user')]);
         }
 
         // We will send the password reset link to this user. Once we have attempted
@@ -84,7 +74,7 @@ class ForgotPasswordController extends Controller
             $request->only('email')
         );
 
-        if ($response == Password::RESET_LINK_SENT) {
+        if ($response === Password::RESET_LINK_SENT) {
             return back()->with('status', trans($response));
         }
 
@@ -92,10 +82,11 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * @codeCoverageIgnore
-     * Display the form to request a password reset link.
+     * Show form for email recovery.
      *
-     * @return \Illuminate\Http\Response
+     * @codeCoverageIgnore
+     *
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     public function showLinkRequestForm()
     {

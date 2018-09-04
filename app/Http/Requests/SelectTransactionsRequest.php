@@ -25,29 +25,35 @@ namespace FireflyIII\Http\Requests;
 use Carbon\Carbon;
 
 /**
- * @codeCoverageIgnore
  * Class ExportFormRequest.
+ *
+ * @codeCoverageIgnore
  */
 class SelectTransactionsRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         // fixed
+        /** @var Carbon $sessionFirst */
         $sessionFirst = clone session('first');
         $first        = $sessionFirst->subDay()->format('Y-m-d');
-        $today        = Carbon::create()->addDay()->format('Y-m-d');
+        $today        = Carbon::now()->addDay()->format('Y-m-d');
 
         return [
             'start_date' => 'required|date|after:' . $first,

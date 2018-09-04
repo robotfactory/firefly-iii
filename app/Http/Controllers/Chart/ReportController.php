@@ -24,23 +24,28 @@ namespace FireflyIII\Http\Controllers\Chart;
 
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
+use FireflyIII\Helpers\Report\NetWorthInterface;
 use FireflyIII\Http\Controllers\Controller;
+use FireflyIII\Models\Account;
+use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Repositories\Account\AccountTaskerInterface;
 use FireflyIII\Support\CacheProperties;
+use FireflyIII\Support\Http\Controllers\BasicDataSupport;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Log;
-use Steam;
 
 /**
  * Class ReportController.
  */
 class ReportController extends Controller
 {
-    /** @var GeneratorInterface */
+    use BasicDataSupport;
+    /** @var GeneratorInterface Chart generation methods. */
     protected $generator;
 
     /**
-     *
+     * ReportController constructor.
      */
     public function __construct()
     {
@@ -57,30 +62,66 @@ class ReportController extends Controller
      * @param Carbon     $start
      * @param Carbon     $end
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function netWorth(Collection $accounts, Carbon $start, Carbon $end)
+    public function netWorth(Collection $accounts, Carbon $start, Carbon $end): JsonResponse
     {
         // chart properties for cache:
         $cache = new CacheProperties;
         $cache->addProperty('chart.report.net-worth');
         $cache->addProperty($start);
-        $cache->addProperty($accounts);
+        $cache->addProperty(implode(',', $accounts->pluck('id')->toArray()));
         $cache->addProperty($end);
         if ($cache->has()) {
             return response()->json($cache->get()); // @codeCoverageIgnore
         }
         $current   = clone $start;
         $chartData = [];
+        /** @var NetWorthInterface $helper */
+        $helper = app(NetWorthInterface::class);
+        $helper->setUser(auth()->user());
+
+        // filter accounts on having the preference for being included.
+        /** @var AccountRepositoryInterface $accountRepository */
+        $accountRepository = app(AccountRepositoryInterface::class);
+        $filtered = $accounts->filter(
+            function (Account $account) use ($accountRepository) {
+                $includeNetWorth = $accountRepository->getMetaValue($account, 'include_net_worth');
+                $result          = null === $includeNetWorth ? true : '1' === $includeNetWorth;
+                if (false === $result) {
+                    Log::debug(sprintf('Will not include "%s" in net worth charts.', $account->name));
+                }
+
+                return $result;
+            }
+        );
+
+
+
         while ($current < $end) {
-            $balances          = Steam::balancesByAccounts($accounts, $current);
-            $sum               = $this->arraySum($balances);
-            $label             = $current->formatLocalized((string)trans('config.month_and_day'));
-            $chartData[$label] = $sum;
+            // get balances by date, grouped by currency.
+            $result = $helper->getNetWorthByCurrency($filtered, $current);
+
+            // loop result, add to array.
+            /** @var array $netWorthItem */
+            foreach ($result as $netWorthItem) {
+                $currencyId = $netWorthItem['currency']->id;
+                $label      = $current->formatLocalized((string)trans('config.month_and_day'));
+                if (!isset($chartData[$currencyId])) {
+                    $chartData[$currencyId] = [
+                        'label'           => 'Net worth in ' . $netWorthItem['currency']->name,
+                        'type'            => 'line',
+                        'currency_symbol' => $netWorthItem['currency']->symbol,
+                        'entries'         => [],
+                    ];
+                }
+                $chartData[$currencyId]['entries'][$label] = $netWorthItem['balance'];
+
+            }
             $current->addDays(7);
         }
 
-        $data = $this->generator->singleSet((string)trans('firefly.net_worth'), $chartData);
+        $data = $this->generator->multiSet($chartData);
         $cache->store($data);
 
         return response()->json($data);
@@ -89,13 +130,17 @@ class ReportController extends Controller
     /**
      * Shows income and expense, debit/credit: operations.
      *
+     * TODO this chart is not multi-currency aware.
+     *
      * @param Collection $accounts
      * @param Carbon     $start
      * @param Carbon     $end
      *
      * @return \Illuminate\Http\JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function operations(Collection $accounts, Carbon $start, Carbon $end)
+    public function operations(Collection $accounts, Carbon $start, Carbon $end): JsonResponse
     {
         // chart properties for cache:
         $cache = new CacheProperties;
@@ -111,17 +156,18 @@ class ReportController extends Controller
         $source    = $this->getChartData($accounts, $start, $end);
         $chartData = [
             [
-                'label'   => trans('firefly.income'),
-                'type'    => 'bar',
-                'entries' => [],
+                'label'           => (string)trans('firefly.income'),
+                'type'            => 'bar',
+                'backgroundColor' => 'rgba(0, 141, 76, 0.5)', // green
+                'entries'         => [],
             ],
             [
-                'label'   => trans('firefly.expenses'),
-                'type'    => 'bar',
-                'entries' => [],
+                'label'           => (string)trans('firefly.expenses'),
+                'type'            => 'bar',
+                'backgroundColor' => 'rgba(219, 68, 55, 0.5)', // red
+                'entries'         => [],
             ],
         ];
-
         foreach ($source['earned'] as $date => $amount) {
             $carbon                          = new Carbon($date);
             $label                           = $carbon->formatLocalized($format);
@@ -144,13 +190,18 @@ class ReportController extends Controller
     /**
      * Shows sum income and expense, debit/credit: operations.
      *
+     * TODO this chart is not multi-currency aware.
+     *
+     * @param Collection $accounts
      * @param Carbon     $start
      * @param Carbon     $end
-     * @param Collection $accounts
      *
      * @return \Illuminate\Http\JsonResponse
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
-    public function sum(Collection $accounts, Carbon $start, Carbon $end)
+    public function sum(Collection $accounts, Carbon $start, Carbon $end): JsonResponse
     {
         // chart properties for cache:
         $cache = new CacheProperties;
@@ -188,17 +239,19 @@ class ReportController extends Controller
 
         $chartData = [
             [
-                'label'   => (string)trans('firefly.income'),
-                'type'    => 'bar',
-                'entries' => [
+                'label'           => (string)trans('firefly.income'),
+                'type'            => 'bar',
+                'backgroundColor' => 'rgba(0, 141, 76, 0.5)', // green
+                'entries'         => [
                     (string)trans('firefly.sum_of_period')     => $numbers['sum_earned'],
                     (string)trans('firefly.average_in_period') => $numbers['avg_earned'],
                 ],
             ],
             [
-                'label'   => trans('firefly.expenses'),
-                'type'    => 'bar',
-                'entries' => [
+                'label'           => (string)trans('firefly.expenses'),
+                'type'            => 'bar',
+                'backgroundColor' => 'rgba(219, 68, 55, 0.5)', // red
+                'entries'         => [
                     (string)trans('firefly.sum_of_period')     => $numbers['sum_spent'],
                     (string)trans('firefly.average_in_period') => $numbers['avg_spent'],
                 ],
@@ -212,21 +265,6 @@ class ReportController extends Controller
     }
 
     /**
-     * @param $array
-     *
-     * @return string
-     */
-    private function arraySum($array): string
-    {
-        $sum = '0';
-        foreach ($array as $entry) {
-            $sum = bcadd($sum, $entry);
-        }
-
-        return $sum;
-    }
-
-    /**
      * Collects the incomes and expenses for the given periods, grouped per month. Will cache its results.
      *
      * @param Collection $accounts
@@ -234,8 +272,10 @@ class ReportController extends Controller
      * @param Carbon     $end
      *
      * @return array
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    private function getChartData(Collection $accounts, Carbon $start, Carbon $end): array
+    protected function getChartData(Collection $accounts, Carbon $start, Carbon $end): array // chart helper function
     {
         $cache = new CacheProperties;
         $cache->addProperty('chart.report.get-chart-data');

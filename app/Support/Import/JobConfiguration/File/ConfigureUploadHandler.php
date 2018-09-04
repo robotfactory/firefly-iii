@@ -35,14 +35,58 @@ use Log;
  */
 class ConfigureUploadHandler implements FileConfigurationInterface
 {
+    /** @var AccountRepositoryInterface */
+    private $accountRepos;
     /** @var ImportJob */
     private $importJob;
-
     /** @var ImportJobRepositoryInterface */
     private $repository;
 
-    /** @var AccountRepositoryInterface */
-    private $accountRepos;
+    /**
+     * Store data associated with current stage.
+     *
+     * @param array $data
+     *
+     * @return MessageBag
+     */
+    public function configureJob(array $data): MessageBag
+    {
+        $config   = $this->importJob->configuration;
+        $complete = true;
+
+        // collect values:
+        $importId              = isset($data['csv_import_account']) ? (int)$data['csv_import_account'] : 0;
+        $delimiter             = (string)$data['csv_delimiter'];
+        $config['has-headers'] = 1 === (int)($data['has_headers'] ?? 0.0);
+        $config['date-format'] = (string)$data['date_format'];
+        $config['delimiter']   = 'tab' === $delimiter ? "\t" : $delimiter;
+        $config['apply-rules'] = 1 === (int)($data['apply_rules'] ?? 0.0);
+        $config['specifics']   = $this->getSpecifics($data);
+        // validate values:
+        $account = $this->accountRepos->findNull($importId);
+
+        // respond to invalid account:
+        if (null === $account) {
+            Log::error('Could not find anything for csv_import_account.', ['id' => $importId]);
+            $complete = false;
+        }
+        if (null !== $account) {
+            $config['import-account'] = $account->id;
+        }
+
+        $this->repository->setConfiguration($this->importJob, $config);
+        if ($complete) {
+            $this->repository->setStage($this->importJob, 'roles');
+        }
+        if (!$complete) {
+            $messages = new MessageBag;
+            $messages->add('account', (string)trans('import.invalid_import_account'));
+
+            return $messages;
+        }
+
+        return new MessageBag;
+    }
 
     /**
      * Get the data necessary to show the configuration screen.
@@ -52,9 +96,9 @@ class ConfigureUploadHandler implements FileConfigurationInterface
     public function getNextData(): array
     {
         $delimiters            = [
-            ','   => trans('form.csv_comma'),
-            ';'   => trans('form.csv_semicolon'),
-            'tab' => trans('form.csv_tab'),
+            ','   => (string)trans('form.csv_comma'),
+            ';'   => (string)trans('form.csv_semicolon'),
+            'tab' => (string)trans('form.csv_tab'),
         ];
         $config                = $this->importJob->configuration;
         $config['date-format'] = $config['date-format'] ?? 'Ymd';
@@ -79,65 +123,6 @@ class ConfigureUploadHandler implements FileConfigurationInterface
     }
 
     /**
-     * @param ImportJob $importJob
-     */
-    public function setImportJob(ImportJob $importJob): void
-    {
-        $this->importJob  = $importJob;
-        $this->repository = app(ImportJobRepositoryInterface::class);
-        $this->repository->setUser($importJob->user);
-        $this->accountRepos = app(AccountRepositoryInterface::class);
-        $this->accountRepos->setUser($importJob->user);
-
-    }
-
-    /**
-     * Store data associated with current stage.
-     *
-     * @param array $data
-     *
-     * @return MessageBag
-     */
-    public function configureJob(array $data): MessageBag
-    {
-        $config   = $this->importJob->configuration;
-        $complete = true;
-
-        // collect values:
-        $importId              = isset($data['csv_import_account']) ? (int)$data['csv_import_account'] : 0;
-        $delimiter             = (string)$data['csv_delimiter'];
-        $config['has-headers'] = (int)($data['has_headers'] ?? 0.0) === 1;
-        $config['date-format'] = (string)$data['date_format'];
-        $config['delimiter']   = 'tab' === $delimiter ? "\t" : $delimiter;
-        $config['apply-rules'] = (int)($data['apply_rules'] ?? 0.0) === 1;
-        $config['specifics']   = $this->getSpecifics($data);
-        // validate values:
-        $account = $this->accountRepos->findNull($importId);
-
-        // respond to invalid account:
-        if (null === $account) {
-            Log::error('Could not find anything for csv_import_account.', ['id' => $importId]);
-            $complete = false;
-        }
-        if (null !== $account) {
-            $config['import-account'] = $account->id;
-        }
-
-        $this->repository->setConfiguration($this->importJob, $config);
-        if ($complete) {
-            $this->repository->setStage($this->importJob, 'roles');
-        }
-        if (!$complete) {
-            $messages = new MessageBag;
-            $messages->add('account', trans('import.invalid_import_account'));
-
-            return $messages;
-        }
-
-        return new MessageBag;
-    }
-
-    /**
      * @param array $data
      *
      * @return array
@@ -158,5 +143,18 @@ class ConfigureUploadHandler implements FileConfigurationInterface
         }
 
         return $return;
+    }
+
+    /**
+     * @param ImportJob $importJob
+     */
+    public function setImportJob(ImportJob $importJob): void
+    {
+        $this->importJob  = $importJob;
+        $this->repository = app(ImportJobRepositoryInterface::class);
+        $this->repository->setUser($importJob->user);
+        $this->accountRepos = app(AccountRepositoryInterface::class);
+        $this->accountRepos->setUser($importJob->user);
+
     }
 }

@@ -18,21 +18,28 @@
  * You should have received a copy of the GNU General Public License
  * along with Firefly III. If not, see <http://www.gnu.org/licenses/>.
  */
+
 declare(strict_types=1);
 
 namespace FireflyIII\Models;
 
+use Carbon\Carbon;
 use Crypt;
+use FireflyIII\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use FireflyIII\User;
-use FireflyIII\Models\Transaction;
-use FireflyIII\Models\TransactionJournal;
 
 /**
  * Class Category.
+ *
+ * @property string      $name
+ * @property int         $id
+ * @property float       $spent // used in category reports
+ * @property Carbon|null lastActivity
+ * @property bool        encrypted
  */
 class Category extends Model
 {
@@ -50,50 +57,27 @@ class Category extends Model
             'deleted_at' => 'datetime',
             'encrypted'  => 'boolean',
         ];
-    /** @var array */
+    /** @var array Fields that can be filled */
     protected $fillable = ['user_id', 'name'];
-    /** @var array */
+    /** @var array Hidden from view */
     protected $hidden = ['encrypted'];
 
     /**
-     * @param array $fields
+     * Route binder. Converts the key in the URL to the specified object (or throw 404).
      *
-     * @deprecated
-     * @return Category
-     */
-    public static function firstOrCreateEncrypted(array $fields)
-    {
-        // everything but the name:
-        $query  = self::orderBy('id');
-        $search = $fields;
-        unset($search['name']);
-        foreach ($search as $name => $value) {
-            $query->where($name, $value);
-        }
-        $set = $query->get(['categories.*']);
-        /** @var Category $category */
-        foreach ($set as $category) {
-            if ($category->name === $fields['name']) {
-                return $category;
-            }
-        }
-        // create it!
-        $category = self::create($fields);
-
-        return $category;
-    }
-
-    /**
      * @param string $value
      *
      * @return Category
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public static function routeBinder(string $value): Category
     {
         if (auth()->check()) {
             $categoryId = (int)$value;
-            $category   = auth()->user()->categories()->find($categoryId);
+            /** @var User $user */
+            $user = auth()->user();
+            /** @var Category $category */
+            $category = $user->categories()->find($categoryId);
             if (null !== $category) {
                 return $category;
             }
@@ -106,10 +90,10 @@ class Category extends Model
      *
      * @param $value
      *
-     * @return string
+     * @return string|null
      * @throws \Illuminate\Contracts\Encryption\DecryptException
      */
-    public function getNameAttribute($value)
+    public function getNameAttribute($value): ?string
     {
         if ($this->encrypted) {
             return Crypt::decrypt($value);
@@ -125,7 +109,7 @@ class Category extends Model
      *
      * @throws \Illuminate\Contracts\Encryption\EncryptException
      */
-    public function setNameAttribute($value)
+    public function setNameAttribute($value): void
     {
         $encrypt                       = config('firefly.encryption');
         $this->attributes['name']      = $encrypt ? Crypt::encrypt($value) : $value;
@@ -134,18 +118,18 @@ class Category extends Model
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function transactionJournals()
+    public function transactionJournals(): BelongsToMany
     {
         return $this->belongsToMany(TransactionJournal::class, 'category_transaction_journal', 'category_id');
     }
 
     /**
      * @codeCoverageIgnore
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany
      */
-    public function transactions()
+    public function transactions(): BelongsToMany
     {
         return $this->belongsToMany(Transaction::class, 'category_transaction', 'category_id');
     }

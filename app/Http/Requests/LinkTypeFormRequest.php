@@ -28,18 +28,22 @@ namespace FireflyIII\Http\Requests;
 class LinkTypeFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged and admins
-        return auth()->check() && auth()->user()->hasRole('owner');
+        return auth()->check();
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         // fixed
         $nameRule = 'required|min:1|unique:link_types,name';

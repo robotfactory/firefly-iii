@@ -26,6 +26,7 @@ use FireflyIII\Models\Account;
 use FireflyIII\Models\AccountType;
 use FireflyIII\Models\Category;
 use FireflyIII\Models\TransactionJournal;
+use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
 use FireflyIII\Support\CacheProperties;
 use FireflyIII\Support\Twig\Extension\TransactionJournal as TransactionJournalExtension;
 use Twig_Extension;
@@ -53,8 +54,10 @@ class Journal extends Twig_Extension
                     return $cache->get(); // @codeCoverageIgnore
                 }
 
-                $list  = $journal->destinationAccountList();
-                $array = [];
+                /** @var JournalRepositoryInterface $repository */
+                $repository = app(JournalRepositoryInterface::class);
+                $list       = $repository->getJournalDestinationAccounts($journal);
+                $array      = [];
                 /** @var Account $entry */
                 foreach ($list as $entry) {
                     if (AccountType::CASH === $entry->accountType->type) {
@@ -79,6 +82,7 @@ class Journal extends Twig_Extension
     {
         $filters = [
             new Twig_SimpleFilter('journalTotalAmount', [TransactionJournalExtension::class, 'totalAmount'], ['is_safe' => ['html']]),
+            new Twig_SimpleFilter('journalTotalAmountPlain', [TransactionJournalExtension::class, 'totalAmountPlain'], ['is_safe' => ['html']]),
         ];
 
         return $filters;
@@ -118,7 +122,10 @@ class Journal extends Twig_Extension
                     return $cache->get(); // @codeCoverageIgnore
                 }
 
-                $list  = $journal->sourceAccountList();
+                /** @var JournalRepositoryInterface $repository */
+                $repository = app(JournalRepositoryInterface::class);
+
+                $list  = $repository->getJournalSourceAccounts($journal);
                 $array = [];
                 /** @var Account $entry */
                 foreach ($list as $entry) {
@@ -198,6 +205,7 @@ class Journal extends Twig_Extension
                                    ->leftJoin('transaction_journals', 'transactions.transaction_journal_id', '=', 'transaction_journals.id')
                                    ->where('categories.user_id', $journal->user_id)
                                    ->where('transaction_journals.id', $journal->id)
+                                   ->whereNull('transactions.deleted_at')
                                    ->get(['categories.*']);
                     /** @var Category $category */
                     foreach ($set as $category) {

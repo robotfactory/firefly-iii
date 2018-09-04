@@ -25,12 +25,10 @@ namespace Tests\Api\V1\Controllers;
 
 
 use FireflyIII\Exceptions\FireflyException;
-use FireflyIII\Helpers\Collector\JournalCollector;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollector;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Helpers\Filter\NegativeAmountFilter;
-use FireflyIII\Models\Transaction;
 use FireflyIII\Models\TransactionCurrency;
-use FireflyIII\Models\TransactionJournal;
 use FireflyIII\Repositories\Account\AccountRepositoryInterface;
 use FireflyIII\Repositories\Journal\JournalRepositoryInterface;
 use Illuminate\Support\Collection;
@@ -46,18 +44,17 @@ class TransactionControllerTest extends TestCase
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         Passport::actingAs($this->user());
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * Destroy account over API.
+     * Destroy journal over API.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::delete
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      */
     public function testDelete(): void
     {
@@ -80,7 +77,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with bad currency code
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailCurrencyCode(): void
@@ -97,7 +94,7 @@ class TransactionControllerTest extends TestCase
 
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -127,7 +124,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with bad currency ID.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailCurrencyId(): void
@@ -143,7 +140,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -173,7 +170,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Empty descriptions
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailEmptyDescriptions(): void
@@ -225,7 +222,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit all empty descriptions for transactions.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailEmptySplitDescriptions(): void
@@ -241,7 +238,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
 
         $data = [
-            'description'  => 'Split journal #' . random_int(1, 1000),
+            'description'  => 'Split journal #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -282,7 +279,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submitted expense account instead of asset account.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      * @covers \FireflyIII\Rules\BelongsUser
      */
@@ -299,7 +296,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -331,7 +328,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submitted expense account name instead of asset account name.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailExpenseName(): void
@@ -346,7 +343,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('findByName')->andReturn(null);
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -378,7 +375,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit no asset account info at all.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailNoAsset(): void
@@ -391,7 +388,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('setUser');
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -422,7 +419,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit no transactions.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailNoData(): void
@@ -435,7 +432,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('setUser');
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [],
@@ -459,7 +456,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit foreign currency without foreign currency info.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailNoForeignCurrencyInfo(): void
@@ -475,7 +472,7 @@ class TransactionControllerTest extends TestCase
 
 
         $data = [
-            'description'  => 'Split journal #' . random_int(1, 1000),
+            'description'  => 'Split journal #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -507,7 +504,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit revenue ID instead of expense ID.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailOpposingRevenueID(): void
@@ -525,7 +522,7 @@ class TransactionControllerTest extends TestCase
 
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -559,9 +556,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a bill ID that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipBillId(): void
     {
@@ -581,7 +578,7 @@ class TransactionControllerTest extends TestCase
         // submit with another account.
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'bill_id'      => $bill->id,
@@ -616,11 +613,11 @@ class TransactionControllerTest extends TestCase
     }
 
     /**
-     * Submit journal with a bill ID that is not yours.
+     * Submit journal with a bill name that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipBillName(): void
     {
@@ -639,7 +636,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'bill_name'    => $bill->name,
@@ -676,9 +673,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a budget ID that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipBudgetId(): void
     {
@@ -697,7 +694,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -734,9 +731,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a budget name that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipBudgetName(): void
     {
@@ -755,7 +752,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -792,9 +789,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a category ID that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipCategoryId(): void
     {
@@ -813,7 +810,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -850,9 +847,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a piggy bank that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipPiggyBankID(): void
     {
@@ -877,7 +874,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'   => 'Some transaction #' . random_int(1, 1000),
+            'description'   => 'Some transaction #' . random_int(1, 10000),
             'date'          => '2018-01-01',
             'type'          => 'withdrawal',
             'piggy_bank_id' => $piggyBank->id,
@@ -916,9 +913,9 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit journal with a piggy bank that is not yours.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
-     * @covers \FireflyiII\Rules\BelongsUser
+     * @covers \FireflyIII\Rules\BelongsUser
      */
     public function testFailOwnershipPiggyBankName(): void
     {
@@ -943,7 +940,7 @@ class TransactionControllerTest extends TestCase
 
         // submit with another account.
         $data = [
-            'description'     => 'Some transaction #' . random_int(1, 1000),
+            'description'     => 'Some transaction #' . random_int(1, 10000),
             'date'            => '2018-01-01',
             'type'            => 'withdrawal',
             'piggy_bank_name' => $piggyBank->name,
@@ -982,7 +979,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submitted revenue account instead of asset account in deposit.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      * @covers \FireflyIII\Rules\BelongsUser
      */
@@ -997,7 +994,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'deposit',
             'transactions' => [
@@ -1029,7 +1026,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Try to store a withdrawal with different source accounts.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailSplitDeposit(): void
@@ -1046,7 +1043,7 @@ class TransactionControllerTest extends TestCase
 
 
         $data = [
-            'description'  => 'Some deposit #' . random_int(1, 1000),
+            'description'  => 'Some deposit #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'deposit',
             'transactions' => [
@@ -1086,7 +1083,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Try to store a withdrawal with different source accounts.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailSplitTransfer(): void
@@ -1102,7 +1099,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]), new Collection([$second]));
 
         $data = [
-            'description'  => 'Some transfer #' . random_int(1, 1000),
+            'description'  => 'Some transfer #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'transfer',
             'transactions' => [
@@ -1139,7 +1136,7 @@ class TransactionControllerTest extends TestCase
                         'All accounts in this field must be equal.',
                     ],
                     'transactions.1.destination_id' => [
-                        'The source account equals the destination account',
+                        'The source account equals the destination account.',
                     ],
                 ],
             ]
@@ -1150,7 +1147,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Try to store a withdrawal with different source accounts.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testFailSplitWithdrawal(): void
@@ -1166,7 +1163,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]), new Collection([$second]));
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1206,11 +1203,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Show index.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::index
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::mapTypes
-     *
-     * throws \FireflyIII\Exceptions\FireflyException
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      */
     public function testIndex(): void
     {
@@ -1220,20 +1213,20 @@ class TransactionControllerTest extends TestCase
                      ->andReturn($this->user()->accounts()->where('account_type_id', 3)->get());
 
         // get some transactions using the collector:
-        $collector = new JournalCollector;
+        $collector = new TransactionCollector;
         $collector->setUser($this->user());
         $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
         $collector->setAllAssetAccounts();
         $collector->setLimit(5)->setPage(1);
         try {
-            $paginator = $collector->getPaginatedJournals();
+            $paginator = $collector->getPaginatedTransactions();
         } catch (FireflyException $e) {
             $this->assertTrue(false, $e->getMessage());
         }
 
         // mock stuff:
         $repository = $this->mock(JournalRepositoryInterface::class);
-        $collector  = $this->mock(JournalCollectorInterface::class);
+        $collector  = $this->mock(TransactionCollectorInterface::class);
         $repository->shouldReceive('setUser');
 
 
@@ -1246,7 +1239,7 @@ class TransactionControllerTest extends TestCase
         $collector->shouldReceive('setLimit')->andReturnSelf();
         $collector->shouldReceive('setPage')->andReturnSelf();
         $collector->shouldReceive('setTypes')->andReturnSelf();
-        $collector->shouldReceive('getPaginatedJournals')->andReturn($paginator);
+        $collector->shouldReceive('getPaginatedTransactions')->andReturn($paginator);
 
 
         // mock some calls:
@@ -1261,10 +1254,9 @@ class TransactionControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::index
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::mapTypes
-     * throws \FireflyIII\Exceptions\FireflyException
+     * Show index with range.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      */
     public function testIndexWithRange(): void
     {
@@ -1274,20 +1266,20 @@ class TransactionControllerTest extends TestCase
                      ->andReturn($this->user()->accounts()->where('account_type_id', 3)->get());
 
         // get some transactions using the collector:
-        $collector = new JournalCollector;
+        $collector = new TransactionCollector;
         $collector->setUser($this->user());
         $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
         $collector->setAllAssetAccounts();
         $collector->setLimit(5)->setPage(1);
         try {
-        $paginator = $collector->getPaginatedJournals();
+            $paginator = $collector->getPaginatedTransactions();
         } catch (FireflyException $e) {
             $this->assertTrue(false, $e->getMessage());
         }
 
         // mock stuff:
         $repository = $this->mock(JournalRepositoryInterface::class);
-        $collector  = $this->mock(JournalCollectorInterface::class);
+        $collector  = $this->mock(TransactionCollectorInterface::class);
         $repository->shouldReceive('setUser');
 
         $collector->shouldReceive('setUser')->andReturnSelf();
@@ -1300,7 +1292,7 @@ class TransactionControllerTest extends TestCase
         $collector->shouldReceive('setPage')->andReturnSelf();
         $collector->shouldReceive('setTypes')->andReturnSelf();
         $collector->shouldReceive('setRange')->andReturnSelf();
-        $collector->shouldReceive('getPaginatedJournals')->andReturn($paginator);
+        $collector->shouldReceive('getPaginatedTransactions')->andReturn($paginator);
 
 
         // mock some calls:
@@ -1329,19 +1321,14 @@ class TransactionControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::show
+     * Show a deposit.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      */
     public function testShowDeposit(): void
     {
-        do {
-            // this is kind of cheating but OK.
-            /** @var TransactionJournal $journal */
-            $journal = $this->user()->transactionJournals()->inRandomOrder()->where('transaction_type_id', 2)->whereNull('deleted_at')->first();
-            $count   = $journal->transactions()->count();
-        } while ($count !== 2);
-        $transaction = $journal->transactions()->first();
-
-
+        $deposit      = $this->getRandomDeposit();
+        $transaction  = $deposit->transactions()->first();
         $accountRepos = $this->mock(AccountRepositoryInterface::class);
         $accountRepos->shouldReceive('setUser');
         $accountRepos->shouldReceive('getAccountsByType')
@@ -1349,17 +1336,17 @@ class TransactionControllerTest extends TestCase
 
 
         // get some transactions using the collector:
-        $collector = new JournalCollector;
+        $collector = new TransactionCollector;
         $collector->setUser($this->user());
         $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
         $collector->setAllAssetAccounts();
-        $collector->setJournals(new Collection([$journal]));
+        $collector->setJournals(new Collection([$deposit]));
         $collector->setLimit(5)->setPage(1);
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
 
         // mock stuff:
         $repository = $this->mock(JournalRepositoryInterface::class);
-        $collector  = $this->mock(JournalCollectorInterface::class);
+        $collector  = $this->mock(TransactionCollectorInterface::class);
         $repository->shouldReceive('setUser');
 
         $collector->shouldReceive('setUser')->andReturnSelf();
@@ -1368,7 +1355,7 @@ class TransactionControllerTest extends TestCase
         $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->once();
         $collector->shouldReceive('setJournals')->andReturnSelf()->once();
         $collector->shouldReceive('addFilter')->withArgs([NegativeAmountFilter::class])->andReturnSelf()->once();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
 
         // test API
         $response = $this->get('/api/v1/transactions/' . $transaction->id);
@@ -1377,7 +1364,7 @@ class TransactionControllerTest extends TestCase
             [
                 'data' => [[
                                'attributes' => [
-                                   'description' => $journal->description,
+                                   'description' => $deposit->description,
                                    'type'        => 'Deposit',
                                ],
                            ]],
@@ -1390,18 +1377,14 @@ class TransactionControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::show
+     * Show a withdrawal.
+     *
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      */
     public function testShowWithdrawal(): void
     {
-        do {
-            // this is kind of cheating but OK.
-            /** @var TransactionJournal $journal */
-            $journal = $this->user()->transactionJournals()->inRandomOrder()->where('transaction_type_id', 1)->whereNull('deleted_at')->first();
-            $count   = $journal->transactions()->count();
-        } while ($count !== 2);
-        /** @var Transaction $transaction */
-        $transaction = $journal->transactions()->first();
+        $journal                  = $this->getRandomWithdrawal();
+        $transaction              = $journal->transactions()->first();
         $transaction->description = null;
         $transaction->save();
 
@@ -1412,17 +1395,17 @@ class TransactionControllerTest extends TestCase
 
 
         // get some transactions using the collector:
-        $collector = new JournalCollector;
+        $collector = new TransactionCollector;
         $collector->setUser($this->user());
         $collector->withOpposingAccount()->withCategoryInformation()->withBudgetInformation();
         $collector->setAllAssetAccounts();
         $collector->setJournals(new Collection([$journal]));
         $collector->setLimit(5)->setPage(1);
-        $transactions = $collector->getJournals();
+        $transactions = $collector->getTransactions();
 
         // mock stuff:
         $repository = $this->mock(JournalRepositoryInterface::class);
-        $collector  = $this->mock(JournalCollectorInterface::class);
+        $collector  = $this->mock(TransactionCollectorInterface::class);
         $repository->shouldReceive('setUser');
 
         $collector->shouldReceive('setUser')->andReturnSelf();
@@ -1431,7 +1414,7 @@ class TransactionControllerTest extends TestCase
         $collector->shouldReceive('withBudgetInformation')->andReturnSelf()->once();
         $collector->shouldReceive('setJournals')->andReturnSelf()->once();
         $collector->shouldReceive('addFilter')->andReturnSelf()->once();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
 
         // test API
         $response = $this->get('/api/v1/transactions/' . $transaction->id);
@@ -1460,7 +1443,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit a transaction (withdrawal) with attached bill ID
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessBillId(): void
@@ -1478,7 +1461,7 @@ class TransactionControllerTest extends TestCase
 
         $bill = $this->user()->bills()->first();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'bill_id'      => $bill->id,
@@ -1501,7 +1484,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit a transaction (withdrawal) with attached bill ID
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessBillName(): void
@@ -1519,7 +1502,7 @@ class TransactionControllerTest extends TestCase
 
         $bill = $this->user()->bills()->first();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'bill_name'    => $bill->name,
@@ -1542,7 +1525,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add opposing account by a new name.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessNewStoreOpposingName(): void
@@ -1558,7 +1541,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1566,7 +1549,7 @@ class TransactionControllerTest extends TestCase
                     'amount'           => '10',
                     'currency_id'      => 1,
                     'source_id'        => $account->id,
-                    'destination_name' => 'New expense account #' . random_int(1, 1000),
+                    'destination_name' => 'New expense account #' . random_int(1, 10000),
                 ],
 
 
@@ -1582,7 +1565,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the minimum amount of data required to create a withdrawal.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreAccountName(): void
@@ -1599,7 +1582,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1621,7 +1604,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the minimum amount of data required to create a withdrawal.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreBasic(): void
@@ -1638,7 +1621,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1660,7 +1643,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the minimum amount of data required to create a withdrawal.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreBasicByName(): void
@@ -1679,7 +1662,7 @@ class TransactionControllerTest extends TestCase
 
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1701,7 +1684,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the minimum amount of data required to create a deposit.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreBasicDeposit(): void
@@ -1718,7 +1701,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'deposit',
             'transactions' => [
@@ -1740,7 +1723,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with existing budget ID, see it reflected in output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreBudgetId(): void
@@ -1756,7 +1739,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1779,7 +1762,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with existing budget name, see it reflected in output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreBudgetName(): void
@@ -1796,7 +1779,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1819,7 +1802,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with existing category ID, see it reflected in output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreCategoryID(): void
@@ -1835,7 +1818,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1858,7 +1841,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with existing category name, see it reflected in output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreCategoryName(): void
@@ -1874,7 +1857,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1897,7 +1880,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add foreign amount information.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreForeignAmount(): void
@@ -1914,7 +1897,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -1938,7 +1921,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add all available meta data fields.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreMetaData(): void
@@ -1953,7 +1936,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'        => 'Some transaction #' . random_int(1, 1000),
+            'description'        => 'Some transaction #' . random_int(1, 10000),
             'date'               => '2018-01-01',
             'type'               => 'withdrawal',
             // store date meta fields (if present):
@@ -1983,7 +1966,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit with NEW category name, see it reflected in output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreNewCategoryName(): void
@@ -1998,9 +1981,9 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
-        $name = 'Some new category #' . random_int(1, 1000);
+        $name = 'Some new category #' . random_int(1, 10000);
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2023,7 +2006,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add opposing account by name.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreNewOpposingName(): void
@@ -2040,7 +2023,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $name = 'New opposing account #' . random_int(1, 10000);
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2063,7 +2046,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the minimum amount of data required to create a withdrawal.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreNotes(): void
@@ -2079,7 +2062,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'notes'        => 'I am a note',
@@ -2102,7 +2085,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add opposing account by ID.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreOpposingID(): void
@@ -2118,7 +2101,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]), new Collection([$opposing]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2141,7 +2124,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Add opposing account by name.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreOpposingName(): void
@@ -2158,7 +2141,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2182,7 +2165,7 @@ class TransactionControllerTest extends TestCase
      * Submit the minimum amount of data required to create a withdrawal.
      * When sending a piggy bank by name, this must be reflected in the output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStorePiggyDeposit(): void
@@ -2198,7 +2181,7 @@ class TransactionControllerTest extends TestCase
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $piggy = $this->user()->piggyBanks()->first();
         $data  = [
-            'description'     => 'Some deposit #' . random_int(1, 1000),
+            'description'     => 'Some deposit #' . random_int(1, 10000),
             'date'            => '2018-01-01',
             'type'            => 'deposit',
             'piggy_bank_name' => $piggy->name,
@@ -2221,7 +2204,7 @@ class TransactionControllerTest extends TestCase
      * Submit the minimum amount of data required to create a withdrawal.
      * When sending a piggy bank by name, this must be reflected in the output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStorePiggyId(): void
@@ -2239,7 +2222,7 @@ class TransactionControllerTest extends TestCase
 
         $piggy = $this->user()->piggyBanks()->first();
         $data  = [
-            'description'   => 'Some transfer #' . random_int(1, 1000),
+            'description'   => 'Some transfer #' . random_int(1, 10000),
             'date'          => '2018-01-01',
             'type'          => 'transfer',
             'piggy_bank_id' => $piggy->id,
@@ -2261,7 +2244,7 @@ class TransactionControllerTest extends TestCase
      * Submit the minimum amount of data required to create a withdrawal.
      * When sending a piggy bank by name, this must be reflected in the output.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStorePiggyName(): void
@@ -2279,7 +2262,7 @@ class TransactionControllerTest extends TestCase
 
         $piggy = $this->user()->piggyBanks()->first();
         $data  = [
-            'description'     => 'Some transfer #' . random_int(1, 1000),
+            'description'     => 'Some transfer #' . random_int(1, 10000),
             'date'            => '2018-01-01',
             'type'            => 'transfer',
             'piggy_bank_name' => $piggy->name,
@@ -2300,7 +2283,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Set a different reconciled var
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreReconciled(): void
@@ -2315,7 +2298,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2338,7 +2321,7 @@ class TransactionControllerTest extends TestCase
     /**
      * Submit the data required for a split withdrawal.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreSplit(): void
@@ -2353,7 +2336,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'transactions' => [
@@ -2385,15 +2368,15 @@ class TransactionControllerTest extends TestCase
      * Submit the minimum amount of data required to create a withdrawal.
      * Add some tags as well. Expect to see them in the result.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::store
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testSuccessStoreTags(): void
     {
         $tags         = [
-            'TagOne' . random_int(1, 1000),
-            'TagTwoBlarg' . random_int(1, 1000),
-            'SomeThreeTag' . random_int(1, 1000),
+            'TagOne' . random_int(1, 10000),
+            'TagTwoBlarg' . random_int(1, 10000),
+            'SomeThreeTag' . random_int(1, 10000),
         ];
         $journal      = $this->user()->transactionJournals()->first();
         $account      = $this->user()->accounts()->where('account_type_id', 3)->first();
@@ -2405,7 +2388,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->andReturn(new Collection([$account]));
         $journalRepos->shouldReceive('store')->andReturn($journal)->once();
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'type'         => 'withdrawal',
             'tags'         => implode(',', $tags),
@@ -2429,7 +2412,7 @@ class TransactionControllerTest extends TestCase
      * Fire enough to trigger an update. Since the create code already fires on the Request, no
      * need to verify all of that.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::update
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testUpdateBasicDeposit(): void
@@ -2440,8 +2423,8 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('setUser');
         $accountRepos->shouldReceive('getAccountsById')->withArgs([[$account->id]])->andReturn(new Collection([$account]));
 
-        $data = [
-            'description'  => 'Some deposit #' . random_int(1, 1000),
+        $data        = [
+            'description'  => 'Some deposit #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'transactions' => [
                 [
@@ -2451,12 +2434,7 @@ class TransactionControllerTest extends TestCase
                 ],
             ],
         ];
-        do {
-            /** @var TransactionJournal $deposit */
-            $deposit = $this->user()->transactionJournals()->inRandomOrder()->where('transaction_type_id', 2)->first();
-            $count   = $deposit->transactions()->count();
-        } while ($count !== 2);
-
+        $deposit     = $this->getRandomDeposit();
         $transaction = $deposit->transactions()->first();
         $repository->shouldReceive('setUser');
         $repository->shouldReceive('update')->andReturn($deposit)->once();
@@ -2470,7 +2448,7 @@ class TransactionControllerTest extends TestCase
      * Fire enough to trigger an update. Since the create code already fires on the Request, no
      * need to verify all of that.
      *
-     * @covers \FireflyIII\Api\V1\Controllers\TransactionController::update
+     * @covers \FireflyIII\Api\V1\Controllers\TransactionController
      * @covers \FireflyIII\Api\V1\Requests\TransactionRequest
      */
     public function testUpdateBasicWithdrawal(): void
@@ -2483,7 +2461,7 @@ class TransactionControllerTest extends TestCase
         $accountRepos->shouldReceive('getAccountsById')->withArgs([[$account->id]])->andReturn(new Collection([$account]));
 
         $data = [
-            'description'  => 'Some transaction #' . random_int(1, 1000),
+            'description'  => 'Some transaction #' . random_int(1, 10000),
             'date'         => '2018-01-01',
             'transactions' => [
                 [
@@ -2493,13 +2471,8 @@ class TransactionControllerTest extends TestCase
                 ],
             ],
         ];
-        do {
-            /** @var TransactionJournal $withdrawal */
-            $withdrawal = $this->user()->transactionJournals()->inRandomOrder()->where('transaction_type_id', 1)->first();
-            $count      = $withdrawal->transactions()->count();
-        } while ($count !== 2);
 
-
+        $withdrawal  = $this->getRandomWithdrawal();
         $transaction = $withdrawal->transactions()->first();
         $repository->shouldReceive('setUser');
         $repository->shouldReceive('update')->andReturn($withdrawal)->once();

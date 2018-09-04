@@ -27,6 +27,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Class Configuration.
+ *
+ * @property string $data
+ * @property string $name
  */
 class Configuration extends Model
 {
@@ -41,10 +44,9 @@ class Configuration extends Model
         = [
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
-    /**
-     * @var string
-     */
+    /** @var string The table to store the data in */
     protected $table = 'configuration';
 
     /**
@@ -64,7 +66,7 @@ class Configuration extends Model
      *
      * @param $value
      */
-    public function setDataAttribute($value)
+    public function setDataAttribute($value): void
     {
         $this->attributes['data'] = json_encode($value);
     }

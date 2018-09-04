@@ -83,7 +83,7 @@ class TransactionJournal extends Twig_Extension
         if (null === $result) {
             return false;
         }
-        if (\strlen((string)$result) === 0) {
+        if ('' === (string)$result) {
             return false;
         }
 
@@ -97,9 +97,52 @@ class TransactionJournal extends Twig_Extension
      */
     public function totalAmount(JournalModel $journal): string
     {
+        $type   = $journal->transactionType->type;
+        $totals = $this->getTotalAmount($journal);
+        $array  = [];
+        foreach ($totals as $total) {
+            if (TransactionType::WITHDRAWAL === $type) {
+                $total['amount'] = bcmul($total['amount'], '-1');
+            }
+            if (null !== $total['currency']) {
+                $array[] = app('amount')->formatAnything($total['currency'], $total['amount']);
+            }
+        }
+
+        return implode(' / ', $array);
+    }
+
+    /**
+     * @param JournalModel $journal
+     *
+     * @return string
+     */
+    public function totalAmountPlain(JournalModel $journal): string
+    {
+        $type   = $journal->transactionType->type;
+        $totals = $this->getTotalAmount($journal);
+        $array  = [];
+
+        foreach ($totals as $total) {
+            if (TransactionType::WITHDRAWAL === $type) {
+                $total['amount'] = bcmul($total['amount'], '-1');
+            }
+            $array[] = app('amount')->formatAnything($total['currency'], $total['amount'], false);
+        }
+
+        return implode(' / ', $array);
+    }
+
+    /**
+     * @param JournalModel $journal
+     *
+     * @return array
+     */
+    private function getTotalAmount(JournalModel $journal): array
+    {
         $transactions = $journal->transactions()->where('amount', '>', 0)->get();
         $totals       = [];
-        $type         = $journal->transactionType->type;
+
         /** @var TransactionModel $transaction */
         foreach ($transactions as $transaction) {
             $currencyId = $transaction->transaction_currency_id;
@@ -114,6 +157,7 @@ class TransactionJournal extends Twig_Extension
             $totals[$currencyId]['amount'] = bcadd($transaction->amount, $totals[$currencyId]['amount']);
 
             if (null !== $transaction->foreign_currency_id) {
+                $foreignAmount = $transaction->foreign_amount ?? '0';
                 $foreignId = $transaction->foreign_currency_id;
                 $foreign   = $transaction->foreignCurrency;
                 if (!isset($totals[$foreignId])) {
@@ -123,19 +167,12 @@ class TransactionJournal extends Twig_Extension
                     ];
                 }
                 $totals[$foreignId]['amount'] = bcadd(
-                    $transaction->foreign_amount,
+                    $foreignAmount,
                     $totals[$foreignId]['amount']
                 );
             }
         }
-        $array = [];
-        foreach ($totals as $total) {
-            if (TransactionType::WITHDRAWAL === $type) {
-                $total['amount'] = bcmul($total['amount'], '-1');
-            }
-            $array[] = app('amount')->formatAnything($total['currency'], $total['amount']);
-        }
 
-        return implode(' / ', $array);
+        return $totals;
     }
 }

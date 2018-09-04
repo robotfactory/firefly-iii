@@ -35,18 +35,17 @@ class AboutControllerTest extends TestCase
     /**
      * Set up test
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         Passport::actingAs($this->user());
-        Log::debug(sprintf('Now in %s.', \get_class($this)));
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
      * Test the about endpoint
      *
-     * @covers \FireflyIII\Api\V1\Controllers\AboutController::__construct
-     * @covers \FireflyIII\Api\V1\Controllers\AboutController::about
+     * @covers \FireflyIII\Api\V1\Controllers\AboutController
      */
     public function testAbout(): void
     {
@@ -65,7 +64,7 @@ class AboutControllerTest extends TestCase
     /**
      * Test user end point
      *
-     * @covers \FireflyIII\Api\V1\Controllers\AboutController::user
+     * @covers \FireflyIII\Api\V1\Controllers\AboutController
      */
     public function testUser(): void
     {

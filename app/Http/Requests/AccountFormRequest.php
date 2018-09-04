@@ -31,20 +31,24 @@ use FireflyIII\Rules\UniqueIban;
 class AccountFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Get all data.
+     *
      * @return array
      */
     public function getAccountData(): array
     {
-        return [
+        $data = [
             'name'                 => $this->string('name'),
             'active'               => $this->boolean('active'),
             'accountType'          => $this->string('what'),
@@ -60,13 +64,34 @@ class AccountFormRequest extends Request
             'ccType'               => $this->string('ccType'),
             'ccMonthlyPaymentDate' => $this->string('ccMonthlyPaymentDate'),
             'notes'                => $this->string('notes'),
+            'interest'             => $this->string('interest'),
+            'interest_period'      => $this->string('interest_period'),
+            'include_net_worth'    => '1',
         ];
+        if (false === $this->boolean('include_net_worth')) {
+            $data['include_net_worth'] = '0';
+        }
+
+        // if the account type is "liabilities" there are actually four types of liability
+        // that could have been selected.
+        if ('liabilities' === $data['accountType']) {
+            $data['accountType']     = null;
+            $data['account_type_id'] = $this->integer('liability_type_id');
+            // also reverse the opening balance:
+            if ('' !== $data['openingBalance']) {
+                $data['openingBalance'] = bcmul($data['openingBalance'], '-1');
+            }
+        }
+
+        return $data;
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
         $accountRoles   = implode(',', config('firefly.accountRoles'));
         $types          = implode(',', array_keys(config('firefly.subTitlesByIdentifier')));
@@ -87,14 +112,20 @@ class AccountFormRequest extends Request
             'amount_currency_id_openingBalance' => 'exists:transaction_currencies,id',
             'amount_currency_id_virtualBalance' => 'exists:transaction_currencies,id',
             'what'                              => 'in:' . $types,
+            'interest_period'                   => 'in:daily,monthly,yearly',
         ];
+
+        if ('liabilities' === $this->get('what')) {
+            $rules['openingBalance']     = 'numeric|required|more:0';
+            $rules['openingBalanceDate'] = 'date|required';
+        }
 
         /** @var Account $account */
         $account = $this->route()->parameter('account');
         if (null !== $account) {
             // add rules:
             $rules['id']   = 'belongsToUser:accounts';
-            $rules['name'] = 'required|min:1|uniqueAccountForUser:' . (int)$this->get('id');
+            $rules['name'] = 'required|min:1|uniqueAccountForUser:' . $account->id;
             $rules['iban'] = ['iban', 'nullable', new UniqueIban($account, $account->accountType->type)];
         }
 

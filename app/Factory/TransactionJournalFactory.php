@@ -26,8 +26,8 @@ namespace FireflyIII\Factory;
 
 use FireflyIII\Exceptions\FireflyException;
 use FireflyIII\Models\TransactionJournal;
-use FireflyIII\Models\TransactionType;
 use FireflyIII\Services\Internal\Support\JournalServiceTrait;
+use FireflyIII\Services\Internal\Support\TransactionTypeTrait;
 use FireflyIII\User;
 use Log;
 
@@ -36,15 +36,19 @@ use Log;
  */
 class TransactionJournalFactory
 {
-    use JournalServiceTrait;
-    /** @var User */
+    use JournalServiceTrait, TransactionTypeTrait;
+    /** @var User The user */
     private $user;
 
     /**
+     * Store a new transaction journal.
+     *
      * @param array $data
      *
      * @return TransactionJournal
      * @throws FireflyException
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     public function create(array $data): TransactionJournal
     {
@@ -53,7 +57,7 @@ class TransactionJournalFactory
         $type            = $this->findTransactionType($data['type']);
         $defaultCurrency = app('amount')->getDefaultCurrencyByUser($this->user);
         Log::debug(sprintf('Going to store a %s', $type->type));
-        $journal         = TransactionJournal::create(
+        $journal = TransactionJournal::create(
             [
                 'user_id'                 => $data['user'],
                 'transaction_type_id'     => $type->id,
@@ -66,6 +70,10 @@ class TransactionJournalFactory
                 'completed'               => 0,
             ]
         );
+
+        if (isset($data['transactions'][0]['amount']) && '' === $data['transactions'][0]['amount']) {
+            Log::error('Empty amount in data', $data);
+        }
 
         // store basic transactions:
         /** @var TransactionFactory $factory */
@@ -95,12 +103,16 @@ class TransactionJournalFactory
 
         // store date meta fields (if present):
         $fields = ['sepa-cc', 'sepa-ct-op', 'sepa-ct-id', 'sepa-db', 'sepa-country', 'sepa-ep', 'sepa-ci', 'interest_date', 'book_date', 'process_date',
-                   'due_date', 'payment_date', 'invoice_date', 'internal_reference', 'bunq_payment_id', 'importHash','importHashV2', 'external_id'];
+                   'due_date', 'recurrence_id', 'payment_date', 'invoice_date', 'internal_reference', 'bunq_payment_id', 'importHash', 'importHashV2',
+                   'external_id', 'sepa-batch-id'];
 
         foreach ($fields as $field) {
             $this->storeMeta($journal, $data, $field);
         }
         Log::debug('End of TransactionJournalFactory::create()');
+
+        // invalidate cache.
+        app('preferences')->mark();
 
         return $journal;
     }
@@ -116,6 +128,8 @@ class TransactionJournalFactory
     }
 
     /**
+     * Link a piggy bank to this journal.
+     *
      * @param TransactionJournal $journal
      * @param array              $data
      */
@@ -131,27 +145,6 @@ class TransactionJournalFactory
             $factory = app(PiggyBankEventFactory::class);
             $factory->create($journal, $piggyBank);
         }
-    }
-
-    /**
-     * Get the transaction type. Since this is mandatory, will throw an exception when nothing comes up. Will always
-     * use TransactionType repository.
-     *
-     * @param string $type
-     *
-     * @return TransactionType
-     * @throws FireflyException
-     */
-    protected function findTransactionType(string $type): TransactionType
-    {
-        $factory         = app(TransactionTypeFactory::class);
-        $transactionType = $factory->find($type);
-        if (null === $transactionType) {
-            Log::error(sprintf('Could not find transaction type for "%s"', $type)); // @codeCoverageIgnore
-            throw new FireflyException(sprintf('Could not find transaction type for "%s"', $type)); // @codeCoverageIgnore
-        }
-
-        return $transactionType;
     }
 
 }

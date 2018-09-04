@@ -24,7 +24,7 @@ namespace Tests\Feature\Controllers\Chart;
 
 use Carbon\Carbon;
 use FireflyIII\Generator\Chart\Basic\GeneratorInterface;
-use FireflyIII\Helpers\Collector\JournalCollectorInterface;
+use FireflyIII\Helpers\Collector\TransactionCollectorInterface;
 use FireflyIII\Models\Account;
 use FireflyIII\Models\Budget;
 use FireflyIII\Models\BudgetLimit;
@@ -40,25 +40,20 @@ use Tests\TestCase;
 
 /**
  * Class BudgetControllerTest
- *
- * @SuppressWarnings(PHPMD.TooManyPublicMethods)
- * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
- * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class BudgetControllerTest extends TestCase
 {
     /**
      *
      */
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
-        Log::debug('Now in Feature/Controllers/Chart/Test.');
+        Log::info(sprintf('Now in %s.', \get_class($this)));
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::budget
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::__construct
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -79,7 +74,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::budgetLimit
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -99,8 +94,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers                   \FireflyIII\Http\Controllers\Chart\BudgetController::budgetLimit
-     * @expectedExceptionMessage This budget limit is not part of this budget.
+     * @covers                   \FireflyIII\Http\Controllers\Chart\BudgetController
      */
     public function testBudgetLimitWrongLimit(): void
     {
@@ -113,8 +107,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::expenseAsset
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getAccountNames
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -123,7 +116,7 @@ class BudgetControllerTest extends TestCase
     {
         $budgetRepository = $this->mock(BudgetRepositoryInterface::class);
         $generator        = $this->mock(GeneratorInterface::class);
-        $collector        = $this->mock(JournalCollectorInterface::class);
+        $collector        = $this->mock(TransactionCollectorInterface::class);
         $transactions     = factory(Transaction::class, 10)->make();
         $accountRepos     = $this->mock(AccountRepositoryInterface::class);
 
@@ -131,7 +124,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setAllAssetAccounts')->once()->andReturnSelf();
         $collector->shouldReceive('setBudget')->andReturnSelf();
         $collector->shouldReceive('setRange')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
 
         $generator->shouldReceive('pieChart')->once()->andReturn([]);
 
@@ -142,8 +135,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::expenseCategory
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getCategoryNames
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -151,7 +143,7 @@ class BudgetControllerTest extends TestCase
     public function testExpenseCategory(string $range): void
     {
         $generator  = $this->mock(GeneratorInterface::class);
-        $collector  = $this->mock(JournalCollectorInterface::class);
+        $collector  = $this->mock(TransactionCollectorInterface::class);
         $catRepos   = $this->mock(CategoryRepositoryInterface::class);
         $repository = $this->mock(BudgetRepositoryInterface::class);
 
@@ -163,7 +155,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setBudget')->andReturnSelf();
         $collector->shouldReceive('setRange')->andReturnSelf();
         $collector->shouldReceive('withCategoryInformation')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
 
         $catRepos->shouldReceive('getCategories')->andReturn($categories)->once();
 
@@ -176,8 +168,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::expenseExpense
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getAccountNames
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -185,7 +176,7 @@ class BudgetControllerTest extends TestCase
     public function testExpenseExpense(string $range): void
     {
         $generator    = $this->mock(GeneratorInterface::class);
-        $collector    = $this->mock(JournalCollectorInterface::class);
+        $collector    = $this->mock(TransactionCollectorInterface::class);
         $accountRepos = $this->mock(AccountRepositoryInterface::class);
         $repository   = $this->mock(BudgetRepositoryInterface::class);
 
@@ -197,7 +188,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setBudget')->andReturnSelf();
         $collector->shouldReceive('setRange')->andReturnSelf();
         $collector->shouldReceive('withOpposingAccount')->andReturnSelf();
-        $collector->shouldReceive('getJournals')->andReturn($transactions);
+        $collector->shouldReceive('getTransactions')->andReturn($transactions);
 
         $accountRepos->shouldReceive('getAccountsByType')->andReturn($accounts)->once();
 
@@ -210,10 +201,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::frontpage
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getExpensesForBudget
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodWithout
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodMulti
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -222,7 +210,7 @@ class BudgetControllerTest extends TestCase
     {
         $repository             = $this->mock(BudgetRepositoryInterface::class);
         $generator              = $this->mock(GeneratorInterface::class);
-        $collector              = $this->mock(JournalCollectorInterface::class);
+        $collector              = $this->mock(TransactionCollectorInterface::class);
         $budget                 = factory(Budget::class)->make();
         $budgetLimit            = factory(BudgetLimit::class)->make();
         $budgetLimit->budget_id = $budget->id;
@@ -236,7 +224,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setTypes')->withArgs([[TransactionType::WITHDRAWAL]])->andReturnSelf()->once();
         $collector->shouldReceive('setRange')->andReturnSelf()->once();
         $collector->shouldReceive('withoutBudget')->andReturnSelf()->once();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection([$transaction]))->once();
+        $collector->shouldReceive('getTransactions')->andReturn(new Collection([$transaction]))->once();
 
         $generator->shouldReceive('multiSet')->once()->andReturn([]);
 
@@ -247,10 +235,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::frontpage
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getExpensesForBudget
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodWithout
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodMulti
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -259,7 +244,7 @@ class BudgetControllerTest extends TestCase
     {
         $repository     = $this->mock(BudgetRepositoryInterface::class);
         $generator      = $this->mock(GeneratorInterface::class);
-        $collector      = $this->mock(JournalCollectorInterface::class);
+        $collector      = $this->mock(TransactionCollectorInterface::class);
         $budget         = factory(Budget::class)->make();
         $one            = factory(BudgetLimit::class)->make();
         $two            = factory(BudgetLimit::class)->make();
@@ -275,7 +260,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setTypes')->withArgs([[TransactionType::WITHDRAWAL]])->andReturnSelf()->once();
         $collector->shouldReceive('setRange')->andReturnSelf()->once();
         $collector->shouldReceive('withoutBudget')->andReturnSelf()->once();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection([$transaction]))->once();
+        $collector->shouldReceive('getTransactions')->andReturn(new Collection([$transaction]))->once();
 
         $generator->shouldReceive('multiSet')->once()->andReturn([]);
 
@@ -286,10 +271,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::frontpage
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::getExpensesForBudget
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodWithout
-     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController::spentInPeriodMulti
+     * @covers       \FireflyIII\Http\Controllers\Chart\BudgetController
      * @dataProvider dateRangeProvider
      *
      * @param string $range
@@ -298,7 +280,7 @@ class BudgetControllerTest extends TestCase
     {
         $repository  = $this->mock(BudgetRepositoryInterface::class);
         $generator   = $this->mock(GeneratorInterface::class);
-        $collector   = $this->mock(JournalCollectorInterface::class);
+        $collector   = $this->mock(TransactionCollectorInterface::class);
         $budget      = factory(Budget::class)->make();
         $transaction = factory(Transaction::class)->make();
 
@@ -310,7 +292,7 @@ class BudgetControllerTest extends TestCase
         $collector->shouldReceive('setTypes')->withArgs([[TransactionType::WITHDRAWAL]])->andReturnSelf()->once();
         $collector->shouldReceive('setRange')->andReturnSelf()->once();
         $collector->shouldReceive('withoutBudget')->andReturnSelf()->once();
-        $collector->shouldReceive('getJournals')->andReturn(new Collection([$transaction]))->once();
+        $collector->shouldReceive('getTransactions')->andReturn(new Collection([$transaction]))->once();
 
         $generator->shouldReceive('multiSet')->once()->andReturn([]);
 
@@ -321,8 +303,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\BudgetController::period
-     * @covers \FireflyIII\Http\Controllers\Chart\BudgetController::getBudgetedInPeriod
+     * @covers \FireflyIII\Http\Controllers\Chart\BudgetController
      */
     public function testPeriod(): void
     {
@@ -342,7 +323,7 @@ class BudgetControllerTest extends TestCase
     }
 
     /**
-     * @covers \FireflyIII\Http\Controllers\Chart\BudgetController::periodNoBudget
+     * @covers \FireflyIII\Http\Controllers\Chart\BudgetController
      */
     public function testPeriodNoBudget(): void
     {

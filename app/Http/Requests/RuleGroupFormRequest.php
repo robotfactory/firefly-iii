@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 namespace FireflyIII\Http\Requests;
 
-use FireflyIII\Repositories\RuleGroup\RuleGroupRepositoryInterface;
+use FireflyIII\Models\RuleGroup;
 
 /**
  * Class RuleGroupFormRequest.
@@ -30,15 +30,19 @@ use FireflyIII\Repositories\RuleGroup\RuleGroupRepositoryInterface;
 class RuleGroupFormRequest extends Request
 {
     /**
+     * Verify the request.
+     *
      * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         // Only allow logged in users
         return auth()->check();
     }
 
     /**
+     * Get all data for controller.
+     *
      * @return array
      */
     public function getRuleGroupData(): array
@@ -50,16 +54,19 @@ class RuleGroupFormRequest extends Request
     }
 
     /**
+     * Rules for this request.
+     *
      * @return array
      */
-    public function rules()
+    public function rules(): array
     {
-        // fixed
-        /** @var RuleGroupRepositoryInterface $repository */
-        $repository = app(RuleGroupRepositoryInterface::class);
-        $titleRule  = 'required|between:1,100|uniqueObjectForUser:rule_groups,title';
-        if (null !== $repository->find((int)$this->get('id'))->id) {
-            $titleRule = 'required|between:1,100|uniqueObjectForUser:rule_groups,title,' . (int)$this->get('id');
+        $titleRule = 'required|between:1,100|uniqueObjectForUser:rule_groups,title';
+
+        /** @var RuleGroup $ruleGroup */
+        $ruleGroup = $this->route()->parameter('ruleGroup');
+
+        if (null !== $ruleGroup) {
+            $titleRule = 'required|between:1,100|uniqueObjectForUser:rule_groups,title,' . $ruleGroup->id;
         }
 
         return [
